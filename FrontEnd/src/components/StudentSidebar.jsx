@@ -6,8 +6,8 @@ const navigationItems = [
   { label: 'Assignments', icon: '□', path: '/student/assignments' },
   { label: 'My Submissions', icon: '↑', path: '/student/submissions' },
   { label: 'Attendance', icon: '✓', path: '/student/attendance' },
-  { label: 'Medical Requests', icon: '+', path: '/student-dashboard/medical-requests' },
-  { label: 'Marks & Feedback', icon: '↗', path: '/student-dashboard/feedback' },
+  { label: 'Medical Requests', icon: '+', path: '/student/medical-requests' },
+  { label: 'Marks & Feedback', icon: '↗', path: '/student/marks-feedback' },
 ]
 
 function StudentSidebar() {

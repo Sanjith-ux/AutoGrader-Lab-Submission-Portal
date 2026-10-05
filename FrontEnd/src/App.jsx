@@ -7,6 +7,8 @@ import AssignmentsPage from './pages/AssignmentsPage'
 import AssignmentDetailsPage from './pages/AssignmentDetailsPage'
 import SubmissionsPage from './pages/SubmissionsPage'
 import AttendancePage from './pages/AttendancePage'
+import MedicalRequestsPage from './pages/MedicalRequestsPage'
+import MarksFeedbackPage from './pages/MarksFeedbackPage'
 
 function App() {
   return (
@@ -20,6 +22,8 @@ function App() {
         <Route path="/student/assignments/:assignmentId" element={<AssignmentDetailsPage />} />
         <Route path="/student/submissions" element={<SubmissionsPage />} />
         <Route path="/student/attendance" element={<AttendancePage />} />
+        <Route path="/student/medical-requests" element={<MedicalRequestsPage />} />
+        <Route path="/student/marks-feedback" element={<MarksFeedbackPage />} />
         <Route path="/lecturer-dashboard" element={<DashboardPage />} />
       </Routes>
     </BrowserRouter>

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import StudentSidebar from '../components/StudentSidebar'
 
 const filters = ['All', 'Present', 'Absent', 'Late', 'Excused', 'Upcoming']
@@ -47,7 +48,7 @@ function AttendancePage() {
               {visibleRecords.length === 0 ? <div className="empty-state attendance-empty"><strong>No attendance records</strong><p>There are no sessions matching this filter yet.</p></div> : <div className="attendance-table-scroll"><table className="attendance-table"><thead><tr><th>Lab session</th><th>Date</th><th>Room</th><th>Lecturer</th><th>Status</th></tr></thead><tbody>{visibleRecords.map((record) => <tr className={selectedRecord?.id === record.id ? 'selected' : ''} key={record.id} onClick={() => setSelectedId(record.id)}><td><strong>{record.title}</strong></td><td>{record.date}</td><td>{record.room}</td><td>{record.lecturer}</td><td><span className={`attendance-status ${record.status.toLowerCase()}`}>{record.status}</span></td></tr>)}</tbody></table></div>}
             </section>
 
-            {selectedRecord && <aside className="attendance-detail-card"><div className="details-heading"><div><p className="eyebrow">Selected session</p><h2>Attendance details</h2></div><span className={`attendance-status ${selectedRecord.status.toLowerCase()}`}>{selectedRecord.status}</span></div><h3>{selectedRecord.title}</h3><p className="details-meta">{selectedRecord.date}<br />{selectedRecord.room}<br />Lecturer: {selectedRecord.lecturer}</p><div className="detail-block"><h4>Status note</h4><p>{selectedRecord.note}</p></div>{selectedRecord.status === 'Absent' && <div className="medical-request-note"><h4>Need to explain this absence?</h4><p>You can submit a medical request for this missed session.</p><button className="section-link" type="button" disabled>Submit medical request <span aria-hidden="true">→</span></button></div>}</aside>}
+            {selectedRecord && <aside className="attendance-detail-card"><div className="details-heading"><div><p className="eyebrow">Selected session</p><h2>Attendance details</h2></div><span className={`attendance-status ${selectedRecord.status.toLowerCase()}`}>{selectedRecord.status}</span></div><h3>{selectedRecord.title}</h3><p className="details-meta">{selectedRecord.date}<br />{selectedRecord.room}<br />Lecturer: {selectedRecord.lecturer}</p><div className="detail-block"><h4>Status note</h4><p>{selectedRecord.note}</p></div>{selectedRecord.status === 'Absent' && <div className="medical-request-note"><h4>Need to explain this absence?</h4><p>You can submit a medical request for this missed session.</p><Link className="section-link" to="/student/medical-requests">Submit medical request <span aria-hidden="true">→</span></Link></div>}</aside>}
           </div>
         </div>
       </section>
