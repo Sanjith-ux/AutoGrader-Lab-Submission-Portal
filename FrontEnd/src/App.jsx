@@ -9,6 +9,9 @@ import SubmissionsPage from './pages/SubmissionsPage'
 import AttendancePage from './pages/AttendancePage'
 import MedicalRequestsPage from './pages/MedicalRequestsPage'
 import MarksFeedbackPage from './pages/MarksFeedbackPage'
+import LecturerPlaceholderPage from './pages/LecturerPlaceholderPage'
+import LecturerAssignmentsPage from './pages/LecturerAssignmentsPage'
+import LecturerAssignmentFormPage from './pages/LecturerAssignmentFormPage'
 
 function App() {
   return (
@@ -25,6 +28,10 @@ function App() {
         <Route path="/student/medical-requests" element={<MedicalRequestsPage />} />
         <Route path="/student/marks-feedback" element={<MarksFeedbackPage />} />
         <Route path="/lecturer-dashboard" element={<DashboardPage />} />
+        <Route path="/lecturer/assignments" element={<LecturerAssignmentsPage />} />
+        <Route path="/lecturer/assignments/create" element={<LecturerAssignmentFormPage />} />
+        <Route path="/lecturer/assignments/:assignmentId/edit" element={<LecturerAssignmentFormPage edit />} />
+        <Route path="/lecturer/*" element={<LecturerPlaceholderPage />} />
       </Routes>
     </BrowserRouter>
   )
