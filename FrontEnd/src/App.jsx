@@ -12,6 +12,8 @@ import MarksFeedbackPage from './pages/MarksFeedbackPage'
 import LecturerPlaceholderPage from './pages/LecturerPlaceholderPage'
 import LecturerAssignmentsPage from './pages/LecturerAssignmentsPage'
 import LecturerAssignmentFormPage from './pages/LecturerAssignmentFormPage'
+import LecturerSchedulePage from './pages/LecturerSchedulePage'
+import LecturerSubmissionsPage from './pages/LecturerSubmissionsPage'
 
 function App() {
   return (
@@ -28,6 +30,8 @@ function App() {
         <Route path="/student/medical-requests" element={<MedicalRequestsPage />} />
         <Route path="/student/marks-feedback" element={<MarksFeedbackPage />} />
         <Route path="/lecturer-dashboard" element={<DashboardPage />} />
+        <Route path="/lecturer/schedule" element={<LecturerSchedulePage />} />
+        <Route path="/lecturer/submissions" element={<LecturerSubmissionsPage />} />
         <Route path="/lecturer/assignments" element={<LecturerAssignmentsPage />} />
         <Route path="/lecturer/assignments/create" element={<LecturerAssignmentFormPage />} />
         <Route path="/lecturer/assignments/:assignmentId/edit" element={<LecturerAssignmentFormPage edit />} />
