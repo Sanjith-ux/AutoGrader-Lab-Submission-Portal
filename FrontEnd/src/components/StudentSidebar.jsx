@@ -1,4 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom'
+import { useAuth } from '../auth/useAuth.js'
 
 const navigationItems = [
   { label: 'Dashboard', icon: '⌂', path: '/student-dashboard' },
@@ -12,6 +13,12 @@ const navigationItems = [
 
 function StudentSidebar() {
   const navigate = useNavigate()
+  const { logout } = useAuth()
+
+  function handleLogout() {
+    logout()
+    navigate('/')
+  }
 
   return (
     <aside className="student-sidebar">
@@ -30,7 +37,7 @@ function StudentSidebar() {
           </NavLink>
         ))}
       </nav>
-      <button className="logout-button" type="button" onClick={() => navigate('/')}>
+      <button className="logout-button" type="button" onClick={handleLogout}>
         <span className="sidebar-icon" aria-hidden="true">↪</span>
         Log out
       </button>

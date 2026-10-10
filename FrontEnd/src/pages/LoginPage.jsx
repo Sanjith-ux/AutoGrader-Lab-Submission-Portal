@@ -1,14 +1,19 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import RoleSelector from '../components/RoleSelector'
+import { useAuth } from '../auth/useAuth.js'
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 function LoginPage() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const { login, logout } = useAuth()
   const [role, setRole] = useState('student')
   const [form, setForm] = useState({ email: '', password: '' })
-  const [errors, setErrors] = useState({})
+  const [errors, setErrors] = useState(() => location.state?.registrationSuccess ? { form: location.state.registrationSuccess } : {})
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
 
   function handleChange(event) {
     const { name, value } = event.target
@@ -16,7 +21,7 @@ function LoginPage() {
     setErrors((currentErrors) => ({ ...currentErrors, [name]: '' }))
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
     const nextErrors = {}
 
@@ -25,7 +30,22 @@ function LoginPage() {
     if (!form.password) nextErrors.password = 'Enter your password.'
 
     setErrors(nextErrors)
-    if (Object.keys(nextErrors).length === 0) navigate(role === 'student' ? '/student-dashboard' : '/lecturer-dashboard')
+    if (Object.keys(nextErrors).length > 0) return
+
+    setIsSubmitting(true)
+    try {
+      const user = await login({ email: form.email.trim(), password: form.password })
+      if (user.role !== role) {
+        logout()
+        setErrors({ form: `This account is registered as a ${user.role}. Select ${user.role} to continue.` })
+        return
+      }
+      navigate(user.role === 'student' ? '/student-dashboard' : '/lecturer-dashboard')
+    } catch (error) {
+      setErrors({ form: error.message })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -46,6 +66,7 @@ function LoginPage() {
             <h2>Sign in to your portal</h2>
             <p>Access your lab schedule, submissions, attendance, and feedback.</p>
           </div>
+          {errors.form && <p className="auth-error" role="alert">{errors.form}</p>}
 
           <form onSubmit={handleSubmit} noValidate>
             <RoleSelector role={role} onChange={setRole} />
@@ -59,10 +80,10 @@ function LoginPage() {
               <input id="password" name="password" type="password" value={form.password} onChange={handleChange} placeholder="Enter your password" autoComplete="current-password" aria-invalid={Boolean(errors.password)} aria-describedby={errors.password ? 'password-error' : undefined} />
               {errors.password && <p className="field-error" id="password-error">{errors.password}</p>}
             </div>
-            <button className="submit-button" type="submit">Sign in <span aria-hidden="true">→</span></button>
+            <button className="submit-button" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Signing in…' : 'Sign in'} <span aria-hidden="true">→</span></button>
           </form>
 
-          {role === 'student' && <p className="account-prompt">New to LabTrack? <Link to="#create-account">Create an account</Link></p>}
+          <p className="account-prompt">New to LabTrack? <Link to="/register">Create an account</Link></p>
           <p className="form-footer">By continuing, you agree to your university&apos;s portal policies.</p>
         </div>
       </section>
