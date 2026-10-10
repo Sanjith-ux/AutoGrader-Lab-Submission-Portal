@@ -231,3 +231,118 @@ input[aria-invalid='true'] { border-color: #bc5d53; }
 .review-actions button { white-space: nowrap; }
 @media (max-width: 1050px) { .submission-summary-grid { grid-template-columns: 1fr 1fr; } .submission-management-layout { grid-template-columns: 1fr; } }
 @media (max-width: 700px) { .submission-filter-panel { grid-template-columns: 1fr; } .review-actions { grid-template-columns: 1fr; } }
+.attendance-content { max-width: 115rem; }
+.attendance-selector-panel { align-items: end; background: #e8f1e4; border: 1px solid #d4e3d1; border-radius: 9px; display: grid; gap: 1rem; grid-template-columns: 1.3fr 1fr; margin-bottom: 1rem; padding: 1.1rem 1.35rem; }
+.attendance-selector-field { display: grid; gap: .45rem; }
+.attendance-selector-field label { color: #47745c; font-size: .7rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.attendance-selector-field select { background: #f7f8f4; border: 1px solid #cbdcc9; border-radius: 7px; color: #293936; font: inherit; font-size: .78rem; outline: none; padding: .7rem .75rem; width: 100%; }
+.attendance-selector-field select:focus, .attendance-status-select:focus, .attendance-note-input:focus { border-color: #5d8a6e; box-shadow: 0 0 0 3px rgba(93, 138, 110, .15); outline: none; }
+.attendance-session-details { align-items: center; background: #f7f8f4; border: 1px solid #e1e8e1; border-radius: 9px; display: flex; gap: 2rem; justify-content: space-between; margin-bottom: 1rem; padding: 1.35rem; }
+.attendance-session-details .eyebrow { margin-bottom: .35rem; }
+.attendance-session-details h2 { color: #254239; font: 600 1.25rem 'Space Grotesk', sans-serif; letter-spacing: -.04em; margin: 0 0 .3rem; }
+.attendance-session-details p:last-child { color: #718078; font-size: .78rem; margin: 0; }
+.attendance-meta { display: grid; gap: .7rem 1.5rem; grid-template-columns: repeat(4, minmax(6rem, 1fr)); }
+.attendance-meta span { color: #718078; display: grid; font-size: .75rem; gap: .25rem; }
+.attendance-meta strong { color: #47745c; font-size: .65rem; letter-spacing: .05em; text-transform: uppercase; }
+.attendance-toolbar { align-items: end; display: flex; justify-content: space-between; margin: 1.5rem 0 1rem; }
+.attendance-toolbar .eyebrow { margin-bottom: .35rem; }
+.attendance-toolbar h2 { color: #254239; font: 600 1.4rem 'Space Grotesk', sans-serif; letter-spacing: -.04em; margin: 0; }
+.attendance-actions { display: flex; gap: .65rem; }
+.attendance-actions button:disabled { cursor: not-allowed; opacity: .5; }
+.attendance-form-error, .attendance-success { border-radius: 7px; font-size: .78rem; margin: 0 0 1rem; padding: .75rem .9rem; }
+.attendance-form-error { background: #f4e2dc; color: #914f47; }
+.attendance-success { background: #e8f1e4; color: #397056; }
+.attendance-register-panel, .recorded-attendance-section { background: #f7f8f4; border: 1px solid #e1e8e1; border-radius: 9px; }
+.attendance-summary { border-bottom: 1px solid #e5ebe5; display: grid; grid-template-columns: repeat(4, 1fr); }
+.attendance-summary-item { align-items: center; border-right: 1px solid #e5ebe5; display: flex; gap: .55rem; justify-content: space-between; padding: 1rem 1.1rem; }
+.attendance-summary-item:last-child { border-right: 0; }
+.attendance-summary-item strong { color: #2d443b; font: 600 1.25rem 'Space Grotesk', sans-serif; }
+.attendance-status { background: #e7eae8; border-radius: 99px; color: #607169; display: inline-block; font-size: .63rem; font-weight: 700; padding: .34rem .5rem; white-space: nowrap; }
+.attendance-status.present { background: #e8f1e4; color: #47745c; }
+.attendance-status.absent { background: #f4e2dc; color: #a26456; }
+.attendance-status.late { background: #f8efd3; color: #9b7923; }
+.attendance-status.excused { background: #deebf0; color: #467c8a; }
+.attendance-table { min-width: 52rem; }
+.attendance-status-select, .attendance-note-input { background: #fff; border: 1px solid #d5ded7; border-radius: 7px; color: #293936; font: inherit; font-size: .75rem; outline: none; padding: .6rem .65rem; width: 100%; }
+.attendance-note-input { min-width: 14rem; }
+.recorded-attendance-section { margin-top: 1rem; padding: 1.35rem; }
+.recorded-attendance-section .section-heading { margin-bottom: 1rem; }
+.recorded-attendance-section .section-heading h2 { font-size: 1.15rem; }
+.recorded-attendance-list { display: grid; }
+.recorded-attendance-item { align-items: center; border-top: 1px solid #e5ebe5; display: flex; gap: 1rem; justify-content: space-between; padding: .9rem 0; }
+.recorded-attendance-item strong { color: #2d443b; display: block; font-size: .82rem; margin-bottom: .25rem; }
+.recorded-attendance-item p { color: #84918b; font-size: .72rem; margin: 0; }
+@media (max-width: 1000px) { .attendance-session-details { align-items: flex-start; flex-direction: column; } .attendance-meta { width: 100%; } }
+@media (max-width: 700px) { .attendance-selector-panel { grid-template-columns: 1fr; } .attendance-toolbar { align-items: flex-start; flex-direction: column; gap: 1rem; } .attendance-actions { width: 100%; } .attendance-actions button { flex: 1; } .attendance-summary { grid-template-columns: 1fr 1fr; } .attendance-summary-item:nth-child(2) { border-right: 0; } .attendance-summary-item:nth-child(-n+2) { border-bottom: 1px solid #e5ebe5; } .attendance-meta { grid-template-columns: 1fr 1fr; } }
+.medical-management-content { max-width: 115rem; }
+.medical-summary-grid { display: grid; gap: 1rem; grid-template-columns: repeat(4, 1fr); margin-bottom: 1rem; }
+.medical-summary-card { min-height: 8.8rem; }
+.medical-request-filter-panel { align-items: center; background: #e8f1e4; border: 1px solid #d4e3d1; border-radius: 9px; display: flex; gap: 1.25rem; justify-content: space-between; margin-bottom: 1rem; padding: 1.1rem 1.35rem; }
+.medical-request-search { align-items: center; display: flex; gap: .7rem; }
+.medical-request-search label { color: #47745c; font-size: .7rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.medical-request-search input { background: #f7f8f4; border: 1px solid #cbdcc9; border-radius: 7px; color: #293936; font: inherit; font-size: .78rem; outline: none; padding: .7rem .75rem; width: 18rem; }
+.medical-request-search input:focus { border-color: #5d8a6e; box-shadow: 0 0 0 3px rgba(93, 138, 110, .15); }
+.medical-request-management-layout { display: grid; gap: 1rem; grid-template-columns: minmax(0, 1.6fr) minmax(21rem, .65fr); }
+.medical-request-table { min-width: 76rem; }
+.medical-request-table td:first-child { min-width: 11rem; }
+.medical-request-table td:nth-child(2) { min-width: 13rem; }
+.medical-request-status { background: #e7eae8; border-radius: 99px; color: #607169; display: inline-block; font-size: .63rem; font-weight: 700; padding: .34rem .5rem; white-space: nowrap; }
+.medical-request-status.pending { background: #f8efd3; color: #9b7923; }
+.medical-request-status.approved { background: #e8f1e4; color: #47745c; }
+.medical-request-status.rejected { background: #f4e2dc; color: #a26456; }
+.medical-request-detail { min-width: 0; }
+.medical-request-detail .section-heading h2 { max-width: 13rem; }
+.medical-document { align-items: center; background: #eef3ed; border-radius: 7px; display: flex; gap: .65rem; margin-bottom: .75rem; padding: .65rem .7rem; }
+.medical-document > span:last-child { display: grid; gap: .15rem; min-width: 0; }
+.medical-document strong { color: #2d443b; font-size: .74rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.medical-document small { color: #84918b; font-size: .65rem; }
+.view-document-button { width: 100%; }
+.medical-review-form { border-top: 1px solid #e5ebe5; margin-top: 1rem; padding-top: 1rem; }
+.medical-review-form textarea { background: #fff; border: 1px solid #d5ded7; border-radius: 8px; color: #1a2a2a; font: inherit; line-height: 1.5; outline: none; padding: .8rem .9rem; resize: vertical; width: 100%; }
+.medical-review-form textarea:focus { border-color: #5d8a6e; box-shadow: 0 0 0 3px rgba(93, 138, 110, .15); }
+.medical-review-actions { display: grid; gap: .65rem; grid-template-columns: 1fr 1fr; }
+.reject-button { color: #a26456; }
+.reject-button:hover { background: #f4e2dc; }
+.medical-existing-comment { border-top: 1px solid #e5ebe5; margin-top: 1rem; padding-top: 1rem; }
+.medical-existing-comment h4 { color: #47745c; font-size: .72rem; letter-spacing: .05em; margin: 0 0 .4rem; text-transform: uppercase; }
+.medical-existing-comment p { color: #718078; font-size: .78rem; line-height: 1.6; margin: 0; }
+.medical-success { background: #e8f1e4; border-radius: 7px; color: #397056; font-size: .75rem; margin: 1rem 0 0; padding: .75rem .85rem; }
+@media (max-width: 1050px) { .medical-summary-grid { grid-template-columns: 1fr 1fr; } .medical-request-management-layout { grid-template-columns: 1fr; } }
+@media (max-width: 700px) { .medical-request-filter-panel { align-items: stretch; flex-direction: column; } .medical-request-search { align-items: stretch; flex-direction: column; } .medical-request-search input { width: 100%; } .medical-review-actions { grid-template-columns: 1fr; } }
+.marks-management-content { max-width: 115rem; }
+.marks-management-summary { display: grid; gap: 1rem; grid-template-columns: repeat(4, 1fr); margin-bottom: 1rem; }
+.marks-management-summary-card { min-height: 8.8rem; }
+.marks-filter-panel { align-items: end; background: #e8f1e4; border: 1px solid #d4e3d1; border-radius: 9px; display: grid; gap: 1rem; grid-template-columns: 1.15fr 1fr 1.2fr; margin-bottom: 1rem; padding: 1.1rem 1.35rem; }
+.marks-filter-field { display: grid; gap: .45rem; }
+.marks-filter-field label { color: #47745c; font-size: .7rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.marks-filter-field select, .marks-filter-field input { background: #f7f8f4; border: 1px solid #cbdcc9; border-radius: 7px; color: #293936; font: inherit; font-size: .78rem; outline: none; padding: .7rem .75rem; width: 100%; }
+.marks-filter-field select:focus, .marks-filter-field input:focus { border-color: #5d8a6e; box-shadow: 0 0 0 3px rgba(93, 138, 110, .15); }
+.marks-management-layout { display: grid; gap: 1rem; grid-template-columns: minmax(0, 1.65fr) minmax(21rem, .65fr); }
+.marks-table { min-width: 76rem; }
+.marks-table td:first-child { min-width: 11rem; }
+.marks-table td:nth-child(2) { min-width: 13rem; }
+.feedback-record-status { background: #e7eae8; border-radius: 99px; color: #607169; display: inline-block; font-size: .61rem; font-weight: 700; padding: .34rem .48rem; white-space: nowrap; }
+.feedback-record-status.awaiting-review { background: #f8efd3; color: #9b7923; }
+.feedback-record-status.draft-feedback, .feedback-record-status.draft-saved { background: #deebf0; color: #467c8a; }
+.feedback-record-status.graded, .feedback-record-status.published { background: #e8f1e4; color: #47745c; }
+.marks-review-panel { min-width: 0; }
+.marks-review-panel .section-heading h2 { max-width: 13rem; }
+.marks-review-message { border-radius: 7px; font-size: .73rem; line-height: 1.5; margin: 1rem 0 0; padding: .75rem .85rem; }
+.marks-review-message.awaiting { background: #fbf5e5; color: #8d7129; }
+.marks-check-list { display: grid; gap: .55rem; }
+.marks-check-row { align-items: center; border-top: 1px solid #e5ebe5; display: flex; justify-content: space-between; padding-top: .55rem; }
+.marks-check-row span:first-child { color: #718078; font-size: .75rem; }
+.marks-check-status { background: #e7eae8; border-radius: 99px; color: #607169; display: inline-block; font-size: .6rem; font-weight: 700; padding: .3rem .45rem; }
+.marks-check-status.passed { background: #e8f1e4; color: #47745c; }
+.marks-check-status.warning { background: #f8efd3; color: #9b7923; }
+.marks-check-status.needs-attention { background: #f4e2dc; color: #a26456; }
+.marks-review-form { border-top: 1px solid #e5ebe5; margin-top: 1rem; padding-top: 1rem; }
+.marks-review-form .field-group { margin-bottom: 1rem; }
+.marks-review-form .field-group small { color: #84918b; font-size: .7rem; font-weight: 400; }
+.marks-review-form input, .marks-review-form textarea { background: #fff; border: 1px solid #d5ded7; border-radius: 8px; color: #1a2a2a; font: inherit; outline: none; padding: .8rem .9rem; width: 100%; }
+.marks-review-form textarea { line-height: 1.5; resize: vertical; }
+.marks-review-form input:focus, .marks-review-form textarea:focus { border-color: #5d8a6e; box-shadow: 0 0 0 3px rgba(93, 138, 110, .15); }
+.marks-review-actions { display: grid; gap: .65rem; grid-template-columns: 1fr 1.25fr; }
+.marks-success { background: #e8f1e4; border-radius: 7px; color: #397056; font-size: .75rem; margin: 1rem 0 0; padding: .75rem .85rem; }
+@media (max-width: 1050px) { .marks-management-summary { grid-template-columns: 1fr 1fr; } .marks-management-layout { grid-template-columns: 1fr; } }
+@media (max-width: 700px) { .marks-filter-panel { grid-template-columns: 1fr; } .marks-review-actions { grid-template-columns: 1fr; } }
