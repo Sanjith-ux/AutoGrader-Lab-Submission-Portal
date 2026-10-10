@@ -1,6 +1,7 @@
 import cors from 'cors'
 import express from 'express'
 import authRoutes from './routes/auth.js'
+import labSessionRoutes from './routes/labSessions.js'
 
 const app = express()
 
@@ -12,10 +13,15 @@ app.get('/api/health', (req, res) => {
 })
 
 app.use('/api/auth', authRoutes)
+app.use('/api/lab-sessions', labSessionRoutes)
 
 app.use((error, req, res, next) => {
   console.error(error)
-  res.status(500).json({ message: 'An unexpected server error occurred.' })
+  if (error.name === 'ValidationError') {
+    res.status(400).json({ message: 'Validation failed.', errors: Object.values(error.errors).map((item) => item.message) })
+    return
+  }
+  res.status(error.status || 500).json({ message: error.status ? error.message : 'An unexpected server error occurred.', ...(error.details ? { errors: error.details } : {}) })
 })
 
 export default app

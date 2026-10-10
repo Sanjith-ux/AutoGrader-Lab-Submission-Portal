@@ -20,7 +20,7 @@ Optional `JWT_EXPIRES_IN` controls token lifetime and defaults to `1d`.
 npm start
 ```
 
-The API starts on port `5000` by default. The health check is available at `GET /api/health`.
+The API starts on port `5001` by default. The health check is available at `GET /api/health`.
 
 ## Authentication endpoints
 
@@ -29,3 +29,13 @@ The API starts on port `5000` by default. The health check is available at `GET 
 - `GET /api/auth/me` — return the authenticated user. Send `Authorization: Bearer <token>`.
 
 Authentication middleware is in `src/middleware/auth.js`. Use `requireRole('student')` or `requireRole('lecturer')` on future protected routes.
+
+## Lab session endpoints
+
+All lab session endpoints require a valid bearer token. Students and lecturers can read sessions. Only lecturers can create, update, or delete sessions, and a lecturer can modify only sessions they created.
+
+- `GET /api/lab-sessions`
+- `GET /api/lab-sessions/:id`
+- `POST /api/lab-sessions`
+- `PATCH /api/lab-sessions/:id`
+- `DELETE /api/lab-sessions/:id`
