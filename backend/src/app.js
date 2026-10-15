@@ -2,11 +2,16 @@ import cors from 'cors'
 import express from 'express'
 import authRoutes from './routes/auth.js'
 import labSessionRoutes from './routes/labSessions.js'
+import assignmentRoutes from './routes/assignments.js'
+import { errorHandler, notFound } from './middleware/errorHandler.js'
+import { getAllowedOrigins, securityHeaders } from './middleware/security.js'
 
 const app = express()
 
-app.use(cors())
-app.use(express.json())
+app.disable('x-powered-by')
+app.use(securityHeaders)
+app.use(cors({ origin: getAllowedOrigins() }))
+app.use(express.json({ limit: '100kb' }))
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' })
@@ -14,14 +19,9 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api/auth', authRoutes)
 app.use('/api/lab-sessions', labSessionRoutes)
+app.use('/api/assignments', assignmentRoutes)
 
-app.use((error, req, res, next) => {
-  console.error(error)
-  if (error.name === 'ValidationError') {
-    res.status(400).json({ message: 'Validation failed.', errors: Object.values(error.errors).map((item) => item.message) })
-    return
-  }
-  res.status(error.status || 500).json({ message: error.status ? error.message : 'An unexpected server error occurred.', ...(error.details ? { errors: error.details } : {}) })
-})
+app.use('/api', notFound)
+app.use(errorHandler)
 
 export default app

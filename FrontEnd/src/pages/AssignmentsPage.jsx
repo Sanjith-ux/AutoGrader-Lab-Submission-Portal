@@ -1,12 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import StudentSidebar from '../components/StudentSidebar'
-import { assignments, getAssignmentStatus } from '../data/assignments'
+import { fetchAssignments } from '../api/assignments'
 
 const filters = ['All', 'Pending', 'Submitted', 'Overdue']
 
 function matchesFilter(assignment, filter) {
-  const status = getAssignmentStatus(assignment.id)
+  const status = assignment.studentStatus || 'Not submitted'
   if (filter === 'Pending') return status === 'Not submitted'
   if (filter === 'Submitted') return status === 'Submitted' || status === 'Graded'
   if (filter === 'Overdue') return status === 'Late'
@@ -15,6 +15,12 @@ function matchesFilter(assignment, filter) {
 
 function AssignmentsPage() {
   const [filter, setFilter] = useState('All')
+  const [assignments, setAssignments] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState('')
+  useEffect(() => {
+    fetchAssignments().then(setAssignments).catch((requestError) => setError(requestError.message)).finally(() => setIsLoading(false))
+  }, [])
   const visibleAssignments = assignments.filter((assignment) => matchesFilter(assignment, filter))
 
   return (
@@ -39,14 +45,14 @@ function AssignmentsPage() {
           </div>
 
           <section className="assignment-list" aria-label={`${filter} assignments`}>
-            {visibleAssignments.length === 0 ? <p className="empty-state">No assignments match this filter.</p> : visibleAssignments.map((assignment) => {
-              const status = getAssignmentStatus(assignment.id)
+            {isLoading ? <p className="empty-state">Loading assignments…</p> : error ? <p className="field-error" role="alert">{error}</p> : visibleAssignments.length === 0 ? <p className="empty-state">No assignments match this filter.</p> : visibleAssignments.map((assignment) => {
+              const status = assignment.studentStatus || 'Not submitted'
               return (
                 <article className="assignment-card" key={assignment.id}>
                   <div className="assignment-card-icon">□</div>
                   <div className="assignment-card-body">
                     <div className="assignment-card-heading"><div><p className="assignment-subject">{assignment.subject}</p><h3>{assignment.title}</h3></div><span className={`assignment-status ${status.toLowerCase().replace(' ', '-')}`}>{status}</span></div>
-                    <div className="assignment-meta"><span><strong>Due</strong> {assignment.dueDate} · 23:59</span><span><strong>Files</strong> {assignment.requiredFiles.join(', ')}</span><span><strong>Marks</strong> {assignment.marks}</span></div>
+                    <div className="assignment-meta"><span><strong>Due</strong> {assignment.dueDate}</span><span><strong>Files</strong> {assignment.requiredFiles.join(', ')}</span><span><strong>Marks</strong> {assignment.marks}</span></div>
                     <Link className="assignment-link" to={`/student/assignments/${assignment.id}`}>View assignment <span aria-hidden="true">→</span></Link>
                   </div>
                 </article>

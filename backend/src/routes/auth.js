@@ -3,10 +3,16 @@ import express from 'express'
 import jwt from 'jsonwebtoken'
 import User from '../models/User.js'
 import { authenticateToken } from '../middleware/auth.js'
+import { createRateLimiter } from '../middleware/rateLimit.js'
 
 const router = express.Router()
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const roles = ['student', 'lecturer']
+const maxPasswordBytes = 72
+const maxLoginPasswordLength = 1000
+
+const loginLimiter = createRateLimiter({ windowMs: 15 * 60 * 1000, max: 10, skipSuccessful: true, message: 'Too many failed sign-in attempts. Please try again later.' })
+const registerLimiter = createRateLimiter({ windowMs: 60 * 60 * 1000, max: 30, message: 'Too many registration attempts. Please try again later.' })
 
 function getJwtSecret() {
   if (!process.env.JWT_SECRET) {
@@ -15,13 +21,18 @@ function getJwtSecret() {
   return process.env.JWT_SECRET
 }
 
-function validateCredentials({ name, email, password, role }, includeName = true) {
+function validateCredentials({ name, email, password, role } = {}, includeName = true) {
   const errors = []
-  if (includeName && (!name || !name.trim())) errors.push('Name is required.')
-  if (!email || !email.trim()) errors.push('Email is required.')
-  else if (!emailPattern.test(email.trim())) errors.push('Enter a valid email address.')
-  if (!password) errors.push('Password is required.')
-  else if (password.length < 8) errors.push('Password must be at least 8 characters.')
+  if (includeName) {
+    if (typeof name !== 'string' || !name.trim()) errors.push('Name is required.')
+    else if (name.trim().length < 2 || name.trim().length > 100) errors.push('Name must be between 2 and 100 characters.')
+  }
+  if (typeof email !== 'string' || !email.trim()) errors.push('Email is required.')
+  else if (email.trim().length > 254 || !emailPattern.test(email.trim())) errors.push('Enter a valid email address.')
+  if (typeof password !== 'string' || !password) errors.push('Password is required.')
+  else if (includeName && password.length < 8) errors.push('Password must be at least 8 characters.')
+  else if (includeName && Buffer.byteLength(password) > maxPasswordBytes) errors.push('Password must be 72 bytes or fewer.')
+  else if (!includeName && password.length > maxLoginPasswordLength) errors.push('Password is too long.')
   if (includeName && !roles.includes(role)) errors.push('Role must be either student or lecturer.')
   return errors
 }
@@ -33,9 +44,9 @@ function createToken(user) {
   })
 }
 
-router.post('/register', async (req, res, next) => {
+router.post('/register', registerLimiter, async (req, res, next) => {
   try {
-    const { name, email, password, role } = req.body
+    const { name, email, password, role } = req.body ?? {}
     const errors = validateCredentials({ name, email, password, role })
     if (errors.length) {
       res.status(400).json({ message: 'Validation failed.', errors })
@@ -60,9 +71,9 @@ router.post('/register', async (req, res, next) => {
   }
 })
 
-router.post('/login', async (req, res, next) => {
+router.post('/login', loginLimiter, async (req, res, next) => {
   try {
-    const { email, password } = req.body
+    const { email, password } = req.body ?? {}
     const errors = validateCredentials({ email, password }, false)
     if (errors.length) {
       res.status(400).json({ message: 'Validation failed.', errors })

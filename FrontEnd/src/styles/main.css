@@ -42,6 +42,9 @@ input[aria-invalid='true'] { border-color: #bc5d53; }
 .text-link, .account-prompt a, .back-link { color: #47745c; font-size: .8rem; font-weight: 600; text-decoration: none; }
 .text-link:hover, .account-prompt a:hover, .back-link:hover { text-decoration: underline; }
 .field-error { color: #a9433b; font-size: .78rem; margin: .45rem 0 0; }
+.success-message { background: #e7f3e5; border: 1px solid #b7d7ad; border-radius: 8px; color: #356347; font-size: .85rem; margin: 0; padding: .8rem 1rem; }
+.assignment-search, .assignment-sort { align-items: center; color: #47745c; display: flex; font-size: .7rem; font-weight: 700; gap: .4rem; letter-spacing: .06em; text-transform: uppercase; }
+.assignment-search input, .assignment-sort select { background: #f7f8f4; border: 1px solid #cbd8cd; border-radius: 6px; color: #293936; font-size: .8rem; padding: .55rem .65rem; text-transform: none; }
 .submit-button { align-items: center; background: #2d5a46; border: 0; border-radius: 8px; color: white; cursor: pointer; display: flex; font-weight: 700; justify-content: space-between; margin-top: 2rem; padding: 1rem 1.15rem; width: 100%; }
 .submit-button:hover { background: #234a39; }
 .submit-button span { font-size: 1.3rem; line-height: 0; }

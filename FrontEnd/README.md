@@ -1,20 +1,27 @@
-# React + Vite
+# LabTrack frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React and Vite frontend for the AutoGrader & Lab Submission Portal. It talks to the Express API at `VITE_API_BASE_URL` (default `http://localhost:5001/api`).
 
-Currently, two official plugins are available:
+## Run locally
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```bash
+cd FrontEnd
+npm install
+npm run dev
+```
 
-## React Compiler
+## Checks
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+npm run lint
+npm run build
+```
 
-## Expanding the ESLint configuration
+## Assignment pages
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- `src/api/assignments.js` — API calls and the mapping between the UI form fields and the API model (`subject` ↔ `module`, `maxFileSize` ↔ `maxFileSizeMB`, `allowLateSubmissions` ↔ `lateSubmissionAllowed`).
+- `src/pages/LecturerAssignmentsPage.jsx` — list, filter, search, sort, view, publish, delete.
+- `src/pages/LecturerAssignmentFormPage.jsx` — create and edit with client-side validation.
+- `src/pages/AssignmentsPage.jsx` and `AssignmentDetailsPage.jsx` — student read-only views with loading, error, and empty states.
 
-## Local API
-
-Copy `.env.example` to `.env` if needed, then start the backend on port `5001` before signing in. The frontend uses `http://localhost:5001/api` by default.
+Student submissions are still local placeholders; the Submission API is not built yet.

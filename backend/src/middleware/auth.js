@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken'
 import User from '../models/User.js'
+import { isValidObjectId } from '../utils/objectId.js'
 
 function getJwtSecret() {
   if (!process.env.JWT_SECRET) {
@@ -18,7 +19,7 @@ export async function authenticateToken(req, res, next) {
   const token = authorization.slice(7)
   let payload
   try {
-    payload = jwt.verify(token, getJwtSecret())
+    payload = jwt.verify(token, getJwtSecret(), { algorithms: ['HS256'] })
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
       res.status(401).json({ message: 'Authentication token has expired.' })
@@ -32,13 +33,22 @@ export async function authenticateToken(req, res, next) {
     return
   }
 
-  const user = await User.findById(payload.sub)
-  if (!user) {
-    res.status(401).json({ message: 'User associated with this token no longer exists.' })
+  if (!isValidObjectId(payload.sub)) {
+    res.status(401).json({ message: 'Authentication token is invalid.' })
     return
   }
 
-  req.user = user
+  try {
+    const user = await User.findById(payload.sub)
+    if (!user) {
+      res.status(401).json({ message: 'User associated with this token no longer exists.' })
+      return
+    }
+    req.user = user
+  } catch (error) {
+    next(error)
+    return
+  }
   next()
 }
 
