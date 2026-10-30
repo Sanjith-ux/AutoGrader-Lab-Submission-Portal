@@ -19,7 +19,7 @@ function publicSubmission(submission, role) {
 }
 
 function populate(query) {
-  return query.populate('student', 'name email').populate('assignment', 'title module deadline status totalMarks').populate('reviewedBy', 'name')
+  return query.populate('student', 'name email').populate('assignment', 'title module deadline status totalMarks').populate('reviewedBy', 'name').populate('withdrawnBy', 'name').populate('withdrawalHistory.actor', 'name')
 }
 
 async function accessFilter(user) {
@@ -77,6 +77,10 @@ export async function uploadSubmission(req, res, next) {
 export async function listSubmissions(req, res, next) {
   try {
     const filter = await accessFilter(req.user)
+    const view = req.query.view || (req.user.role === 'lecturer' ? 'active' : 'all')
+    if (!['active', 'withdrawn', 'all'].includes(view)) throw submissionError(400, 'Submission view must be active, withdrawn, or all.')
+    if (view === 'active') filter.withdrawnAt = null
+    if (view === 'withdrawn') filter.withdrawnAt = { $ne: null }
     if (req.query.assignment) {
       requireId(req.query.assignment)
       // Keep the ownership filter as well as the caller-supplied assignment filter.
@@ -94,6 +98,7 @@ export async function getSubmission(req, res, next) {
 export async function reviewSubmission(req, res, next) {
   try {
     const submission = await ownedSubmission(req)
+    if (submission.withdrawnAt) throw submissionError(409, 'Withdrawn submissions cannot be graded. Restore the submission first.')
     const { marks, feedback, reviewStatus } = req.body || {}
     const errors = []
     if (!['Draft', 'Graded'].includes(reviewStatus)) errors.push('Review status must be Draft or Graded.')
@@ -101,15 +106,32 @@ export async function reviewSubmission(req, res, next) {
     if (reviewStatus === 'Graded' && marks === null) errors.push('Provide marks before publishing feedback.')
     if (typeof feedback !== 'string' || feedback.length > 5000) errors.push('Feedback must be text of at most 5000 characters.')
     if (errors.length) throw Object.assign(submissionError(400, 'Validation failed.'), { details: errors })
-    submission.marks = marks
-    submission.feedback = feedback.trim()
-    submission.reviewStatus = reviewStatus
-    submission.reviewedBy = req.user._id
-    submission.reviewedAt = new Date()
-    await submission.save()
-    res.json({ submission: publicSubmission(submission, req.user.role) })
+    const updated = await populate(Submission.findOneAndUpdate({ _id: submission._id, withdrawnAt: null }, { $set: { marks, feedback: feedback.trim(), reviewStatus, reviewedBy: req.user._id, reviewedAt: new Date() } }, { new: true, runValidators: true }))
+    if (!updated) throw submissionError(409, 'Withdrawn submissions cannot be graded. Restore the submission first.')
+    res.json({ submission: publicSubmission(updated, req.user.role) })
   } catch (error) { next(error) }
 }
+
+async function changeWithdrawal(req, res, next, withdraw) {
+  try {
+    const submission = await ownedSubmission(req)
+    const reason = req.body?.reason
+    if (typeof reason !== 'string' || reason.trim().length < 5 || reason.trim().length > 1000) throw submissionError(400, 'Provide a reason of 5 to 1000 characters.')
+    const at = new Date()
+    const updated = await populate(Submission.findOneAndUpdate({
+      _id: submission._id,
+      withdrawnAt: withdraw ? null : { $ne: null },
+    }, {
+      $set: { withdrawnAt: withdraw ? at : null, withdrawnBy: withdraw ? req.user._id : null, withdrawalReason: withdraw ? reason.trim() : '' },
+      $push: { withdrawalHistory: { action: withdraw ? 'Withdrawn' : 'Restored', reason: reason.trim(), actor: req.user._id, at } },
+    }, { new: true, runValidators: true }))
+    if (!updated) throw submissionError(409, withdraw ? 'This submission is already withdrawn.' : 'This submission is already active.')
+    res.json({ submission: publicSubmission(updated, req.user.role) })
+  } catch (error) { next(error) }
+}
+
+export const withdrawSubmission = (req, res, next) => changeWithdrawal(req, res, next, true)
+export const restoreSubmission = (req, res, next) => changeWithdrawal(req, res, next, false)
 
 export async function downloadSubmissionFile(req, res, next) {
   try {

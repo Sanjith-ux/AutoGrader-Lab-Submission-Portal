@@ -31,6 +31,15 @@ const submissionSchema = new mongoose.Schema({
   feedback: { type: String, default: '', maxlength: 5000 },
   reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   reviewedAt: { type: Date, default: null },
+  withdrawnAt: { type: Date, default: null },
+  withdrawnBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  withdrawalReason: { type: String, default: '', maxlength: 1000 },
+  withdrawalHistory: [{
+    action: { type: String, enum: ['Withdrawn', 'Restored'], required: true },
+    reason: { type: String, required: true, maxlength: 1000 },
+    actor: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    at: { type: Date, required: true },
+  }],
 }, { timestamps: true })
 
 submissionSchema.index({ student: 1, submittedAt: -1 })

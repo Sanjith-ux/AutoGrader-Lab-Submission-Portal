@@ -65,3 +65,32 @@ test('closed assignments retain their published results and only unsubmitted ass
   assert.equal(records[1].status, 'Not Submitted')
   assert.equal(buildStudentMarksRecords([], [published])[0].mark, '42 / 50')
 })
+
+test('withdrawn grades remain academic history and are excluded from grade summaries', () => {
+  const withdrawn = { ...published, withdrawnAt: '2026-10-04T10:00:00Z', withdrawalReason: 'Duplicate attempt' }
+  const [record] = buildStudentMarksRecords([], [withdrawn])
+  assert.equal(record.status, 'Withdrawn')
+  assert.equal(record.mark, '42 / 50')
+  assert.equal(record.feedback, 'Published feedback')
+  assert.equal(record.withdrawalReason, 'Duplicate attempt')
+  assert.equal(record.percentage, null)
+  assert.deepEqual(latestGradedAssignments([record]), [])
+})
+
+test('withdrawal does not expose draft marks; restoration restores the grade summary', () => {
+  const draft = { ...published, reviewStatus: 'Draft', withdrawnAt: '2026-10-04T10:00:00Z' }
+  const [privateRecord] = buildStudentMarksRecords([], [draft])
+  assert.equal(privateRecord.status, 'Withdrawn')
+  assert.equal(privateRecord.mark, '—')
+  assert.equal(privateRecord.feedback, '')
+  const [restored] = buildStudentMarksRecords([], [{ ...published, withdrawnAt: null }])
+  assert.equal(restored.status, 'Graded')
+  assert.equal(latestGradedAssignments([restored]).length, 1)
+})
+
+test('withdrawing a newer grade leaves an earlier active published grade in the summary', () => {
+  const withdrawn = { ...published, id: 'withdrawn-newer', submittedAt: '2026-10-05T10:00:00Z', mark: 49, withdrawnAt: '2026-10-06T10:00:00Z' }
+  const records = buildStudentMarksRecords([], [withdrawn, published])
+  assert.equal(records.length, 2)
+  assert.equal(latestGradedAssignments(records)[0].id, published.id)
+})

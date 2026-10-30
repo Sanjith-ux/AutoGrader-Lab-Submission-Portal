@@ -39,7 +39,7 @@ function LecturerAssignmentsPage() {
   }, [])
 
   function handleDelete(assignment) {
-    if (busyId || !window.confirm(`Delete "${assignment.title}"? This action cannot be undone.`)) return
+    if (busyId || !window.confirm(`Delete "${assignment.title}"? This permanently deletes only an assignment with no submission history or uploads in progress. Assignments with submission history cannot be deleted; close them instead. This action cannot be undone.`)) return
     setBusyId(assignment.id)
     setError('')
     setNotice('')
@@ -61,6 +61,17 @@ function LecturerAssignmentsPage() {
     }).catch((requestError) => setError(requestError.message)).finally(() => setBusyId(null))
   }
 
+  async function handleClose(assignment) {
+    if (busyId || !window.confirm(`Close "${assignment.title}"? New uploads will stop. Assignment details, submission history, files and marks will be retained.`)) return
+    setBusyId(assignment.id)
+    setError('')
+    try {
+      const updated = await updateAssignmentStatusRequest(assignment.id, 'Closed')
+      setAssignments((current) => current.map((item) => item.id === updated.id ? updated : item))
+      setNotice('Assignment closed; submission history retained.')
+    } catch (error) { setError(error.message) } finally { setBusyId(null) }
+  }
+
   return (
     <main className="student-dashboard lecturer-dashboard">
       <LecturerSidebar />
@@ -79,7 +90,7 @@ function LecturerAssignmentsPage() {
           {error && <p className="field-error" role="alert">{error}</p>}
           <div className="lecturer-assignment-layout">
             <section className="lecturer-assignment-table-wrap" aria-label={`${filter} assignments`}>
-              {isLoading ? <p className="empty-state">Loading assignments…</p> : visibleAssignments.length === 0 ? <div className="empty-state lecturer-empty"><strong>No assignments found</strong><p>{assignments.length === 0 ? 'Create an assignment to start building your coursework list.' : 'No assignments match the current search or filter.'}</p><button className="primary-action-button" type="button" onClick={() => navigate('/lecturer/assignments/create')}>Create Assignment <span aria-hidden="true">+</span></button></div> : <TableScroll className="lecturer-assignment-table-scroll" label="Lecturer assignments"><table className="lecturer-assignment-table"><thead><tr><th>Assignment</th><th>Deadline</th><th>Status</th><th>Actions</th></tr></thead><tbody>{visibleAssignments.map((assignment) => <tr className={selectedId === assignment.id ? 'selected' : ''} key={assignment.id}><td><strong>{assignment.title}</strong><small>{assignment.subject}</small></td><td>{formatDeadline(assignment.deadline)}</td><td><AssignmentStatus status={assignment.status} /></td><td><div className="table-actions"><button className="details-button" type="button" onClick={() => setSelectedId(assignment.id)}>View</button><button className="details-button" type="button" onClick={() => navigate(`/lecturer/assignments/${assignment.id}/edit`)}>Edit</button>{assignment.status === 'Draft' && <button className="details-button" type="button" onClick={() => handlePublish(assignment)} disabled={busyId === assignment.id}>Publish</button>}<button className="delete-button" type="button" onClick={() => handleDelete(assignment)} disabled={busyId === assignment.id}>Delete</button></div></td></tr>)}</tbody></table></TableScroll>}
+              {isLoading ? <p className="empty-state">Loading assignments…</p> : visibleAssignments.length === 0 ? <div className="empty-state lecturer-empty"><strong>No assignments found</strong><p>{assignments.length === 0 ? 'Create an assignment to start building your coursework list.' : 'No assignments match the current search or filter.'}</p><button className="primary-action-button" type="button" onClick={() => navigate('/lecturer/assignments/create')}>Create Assignment <span aria-hidden="true">+</span></button></div> : <TableScroll className="lecturer-assignment-table-scroll" label="Lecturer assignments"><table className="lecturer-assignment-table"><thead><tr><th>Assignment</th><th>Deadline</th><th>Status</th><th>Actions</th></tr></thead><tbody>{visibleAssignments.map((assignment) => <tr className={selectedId === assignment.id ? 'selected' : ''} key={assignment.id}><td><strong>{assignment.title}</strong><small>{assignment.subject}</small></td><td>{formatDeadline(assignment.deadline)}</td><td><AssignmentStatus status={assignment.status} /></td><td><div className="table-actions"><button className="details-button" type="button" onClick={() => setSelectedId(assignment.id)}>View</button><button className="details-button" type="button" onClick={() => navigate(`/lecturer/assignments/${assignment.id}/edit`)}>Edit</button>{assignment.status === 'Draft' && <button className="details-button" type="button" onClick={() => handlePublish(assignment)} disabled={busyId === assignment.id}>Publish</button>}<button className="details-button" type="button" onClick={() => navigate(`/lecturer/submissions?assignment=${assignment.id}`)}>Submissions / history</button>{assignment.status === 'Published' && <button className="details-button" type="button" disabled={Boolean(busyId)} onClick={() => handleClose(assignment)}>Close</button>}<button className="delete-button" type="button" onClick={() => handleDelete(assignment)} disabled={busyId === assignment.id}>Delete</button></div></td></tr>)}</tbody></table></TableScroll>}
             </section>
 
             {selectedAssignment && <aside className="lecturer-assignment-detail"><div className="section-heading"><div><p className="eyebrow">Assignment overview</p><h2>{selectedAssignment.title}</h2></div><AssignmentStatus status={selectedAssignment.status} /></div><p className="assignment-detail-subject">{selectedAssignment.subject}</p><div className="assignment-detail-meta"><span><strong>Deadline</strong>{formatDeadline(selectedAssignment.deadline)}</span><span><strong>Total marks</strong>{selectedAssignment.totalMarks}</span></div><div className="detail-block"><h4>Instructions</h4><p>{selectedAssignment.description}</p></div><div className="detail-block"><h4>Submission requirements</h4><p>{selectedAssignment.submissionRequirements}</p></div><button className="primary-action-button detail-edit-button" type="button" onClick={() => navigate(`/lecturer/assignments/${selectedAssignment.id}/edit`)}>Edit assignment <span aria-hidden="true">→</span></button></aside>}

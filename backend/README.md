@@ -62,6 +62,16 @@ Relationships: each assignment references its owning lecturer. Submissions refer
 
 ## Persistent student submissions
 
+### Withdrawal, restoration and safe assignment deletion
+
+Only the assignment's owning lecturer can `POST /api/submissions/:id/withdraw` or `POST /api/submissions/:id/restore`, with `{ "reason": "5 to 1000 characters" }`. No administrator role exists in this application. These are reversible state changes, never file or record deletion. Withdrawal records the reason, actor and timestamp and appends an audit event. Restoration appends another event and clears only the current withdrawal state. Grades, feedback, review status, compliance, requirements and file bytes are preserved. Repeated transitions return `409` without overwriting the audit trail. A withdrawn attempt cannot be graded; the review write also checks active state atomically.
+
+Lecturer submission lists default to `view=active`; `view=withdrawn` or `view=all` provides the same ownership-protected audit view. Student lists default to their entire own history, including withdrawn attempts. Students retain access to their own files and previously published historical marks, while draft marks remain hidden. Withdrawn attempts are excluded from active counts, grading queues and grade averages. Restoring an attempt restores its original review state; it does not publish drafts.
+
+The Lecturer Student Submissions page provides Withdraw/Restore confirmation dialogs with mandatory reasons and Active/Withdrawn/All history views. Assignment Management links to scoped submission history and provides the existing Closed status as a non-destructive alternative to deletion. Closing is not a separate archive feature. Permanent assignment deletion continues to refuse **any** submission history, including withdrawn records, or an upload reservation. Withdrawal never decrements the assignment's history/reservation counter.
+
+No migration or destructive cleanup is required: legacy submissions without withdrawal fields are treated as active. Test fixtures use a fresh isolated database and private temporary files; existing development records and storage are not used for testing.
+
 | Method | Path | Access |
 | --- | --- | --- |
 | `POST` | `/api/submissions/assignments/:assignmentId` | Student; Published assignment only |

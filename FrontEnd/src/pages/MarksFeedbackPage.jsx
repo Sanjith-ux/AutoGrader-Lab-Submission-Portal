@@ -5,7 +5,7 @@ import { fetchAssignments } from '../api/assignments'
 import { fetchSubmissions } from '../api/submissions'
 import { buildStudentMarksRecords, latestGradedAssignments } from '../utils/studentMarks'
 
-const filters = ['All', 'Graded', 'Under Review', 'Not Submitted']
+const filters = ['All', 'Graded', 'Under Review', 'Not Submitted', 'Withdrawn']
 
 function StatusBadge({ status }) {
   return <span className={`marks-status ${status.toLowerCase().replaceAll(' ', '-')}`}>{status}</span>
@@ -82,7 +82,7 @@ function MarksFeedbackPage() {
             {selectedRecord && <aside className="marks-detail-panel">
               <div className="section-heading"><div><p className="eyebrow">Feedback details</p><h2>{selectedRecord.title}</h2></div><StatusBadge status={selectedRecord.status} /></div>
               <div className="marks-detail-meta"><span><strong>Subject</strong>{selectedRecord.subject}</span><span><strong>Submission date</strong>{selectedRecord.submissionDate}</span><span><strong>Mark</strong>{selectedRecord.mark}</span><span><strong>Lecturer</strong>{selectedRecord.lecturer}</span></div>
-              {selectedRecord.status === 'Graded' ? <>
+              {selectedRecord.withdrawnAt && <p className="review-message missing-message">Withdrawn on {new Date(selectedRecord.withdrawnAt).toLocaleString()}: {selectedRecord.withdrawalReason}. Any published mark is retained as history and excluded from the average.</p>}{selectedRecord.published ? <>
                 <div className="detail-block"><h4>Feedback comments</h4><p>{selectedRecord.feedback}</p></div>
                 <div className="detail-block"><h4>Date reviewed</h4><p>{selectedRecord.reviewedDate}</p></div>
               </> : <div className={`marks-notice ${selectedRecord.status === 'Not Submitted' ? 'not-submitted-notice' : ''}`}><h4>{selectedRecord.status === 'Under Review' ? 'Feedback is on its way' : 'No feedback available yet'}</h4><p>{selectedRecord.status === 'Under Review' ? 'Your lecturer is still reviewing this submission. The mark and detailed feedback will appear here once the review is complete.' : 'Submit this assignment to receive a mark and lecturer feedback.'}</p></div>}

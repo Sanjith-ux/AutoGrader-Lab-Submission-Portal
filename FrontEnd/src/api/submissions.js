@@ -5,11 +5,12 @@ export function submissionToUi(value) {
     ...value,
     id: value._id,
     assignmentId: value.assignment._id,
+    assignmentStatus: value.assignment.status,
     assignment: value.assignment.title,
     subject: value.assignment.module,
     student: value.student.name,
     email: value.student.email,
-    status: value.reviewStatus === 'Graded' ? 'Graded' : value.timing === 'Late' ? 'Late' : value.reviewStatus === 'Draft' ? 'Under Review' : 'Awaiting Review',
+    status: value.withdrawnAt ? 'Withdrawn' : value.reviewStatus === 'Graded' ? 'Graded' : value.timing === 'Late' ? 'Late' : value.reviewStatus === 'Draft' ? 'Under Review' : 'Awaiting Review',
     mark: value.marks ?? '',
     totalMarks: value.requirements.totalMarks,
     fileName: value.files.map((file) => file.originalName).join(', '),
@@ -21,9 +22,17 @@ export function submissionToUi(value) {
   }
 }
 
-export async function fetchSubmissions(assignmentId) {
-  const { submissions } = await apiRequest(`/submissions${assignmentId ? `?assignment=${encodeURIComponent(assignmentId)}` : ''}`)
+export async function fetchSubmissions(assignmentId, { view } = {}) {
+  const params = new URLSearchParams()
+  if (assignmentId) params.set('assignment', assignmentId)
+  if (view) params.set('view', view)
+  const { submissions } = await apiRequest(`/submissions${params.size ? `?${params}` : ''}`)
   return submissions.map(submissionToUi)
+}
+
+export async function changeSubmissionWithdrawal(id, action, reason) {
+  const { submission } = await apiRequest(`/submissions/${id}/${action}`, { method: 'POST', body: JSON.stringify({ reason }) })
+  return submissionToUi(submission)
 }
 
 export async function uploadSubmission(assignmentId, files, labels) {

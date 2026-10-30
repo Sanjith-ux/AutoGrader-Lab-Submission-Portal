@@ -394,3 +394,10 @@ input[aria-invalid='true'] { border-color: #bc5d53; }
 .selected-file label { display: grid; gap: .35rem; margin-top: .5rem; }
 .selected-file select { max-width: 100%; min-width: 0; width: 100%; }
 .submission-check > div { min-width: 0; overflow-wrap: anywhere; }
+
+.submission-pill.withdrawn, .submission-badge.withdrawn, .marks-status.withdrawn, .assignment-status.withdrawn { background: #f4e2dc; color: #914f47; }
+.submission-withdrawal-dialog { background: #f7f8f4; border: 1px solid #cbd8ce; border-radius: 9px; color: #2d443b; max-height: 85vh; max-width: 34rem; overflow-y: auto; padding: 1.35rem; width: calc(100% - 2rem); }
+.submission-withdrawal-dialog::backdrop { background: rgba(28, 56, 50, .55); }
+.submission-withdrawal-dialog p { font-size: .85rem; line-height: 1.6; }
+.submission-withdrawal-dialog textarea { font: inherit; padding: .7rem; resize: vertical; width: 100%; }
+.submission-withdrawal-dialog .review-actions { margin-top: 1rem; }

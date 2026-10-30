@@ -41,6 +41,148 @@ describe('persistent submissions API (isolated test database)', { skip: !testMon
   }
   const review = (id, change, token = ctx.tokens.lecturer) => ctx.json(`/api/submissions/${id}/review`, token, { method: 'PATCH', body: JSON.stringify(change) })
   const details = (id, token = ctx.tokens.student) => ctx.json(`/api/submissions/${id}`, token)
+  const withdrawal = (id, action = 'withdraw', reason = 'Duplicate attempt requested by student', token = ctx.tokens.lecturer) => ctx.json(`/api/submissions/${id}/${action}`, token, { method: 'POST', body: JSON.stringify({ reason }) })
+
+  test('withdrawal is owner-only and preserves grades, academic history, counters and physical files', async () => {
+    const a = await assignment()
+    const s = (await upload(a._id)).body.submission
+    await review(s._id, { marks: 42, feedback: 'Published feedback to preserve', reviewStatus: 'Graded' })
+    const before = await Submission.findById(s._id).lean()
+    const counter = (await Assignment.findById(a._id).select('+submissionCount')).submissionCount
+    const result = await withdrawal(s._id)
+    assert.equal(result.status, 200)
+    assert.ok(result.body.submission.withdrawnAt)
+    assert.equal(result.body.submission.withdrawnBy._id, ctx.lecturer._id.toString())
+    assert.equal(result.body.submission.withdrawalReason, 'Duplicate attempt requested by student')
+    const after = await Submission.findById(s._id).lean()
+    for (const field of ['student', 'assignment', 'files', 'submittedAt', 'timing', 'requirements', 'compliance', 'marks', 'feedback', 'reviewStatus', 'reviewedBy', 'reviewedAt', 'createdAt']) assert.deepEqual(after[field], before[field], field)
+    assert.equal((await Assignment.findById(a._id).select('+submissionCount')).submissionCount, counter)
+    assert.equal(after.withdrawalHistory.length, 1)
+    assert.equal(after.withdrawalHistory[0].action, 'Withdrawn')
+    assert.deepEqual(await readFile(path.join(ctx.storageRoot, after.files[0].storagePath)), pdf)
+    const download = await ctx.request(`/api/submissions/${s._id}/files/${s.files[0]._id}`, ctx.tokens.lecturer)
+    assert.equal(download.status, 200)
+    assert.deepEqual(Buffer.from(await download.arrayBuffer()), pdf)
+  })
+
+  test('withdrawal and restoration reject unauthenticated, student and unrelated lecturer requests', async () => {
+    const s = (await upload((await assignment())._id)).body.submission
+    for (const action of ['withdraw', 'restore']) {
+      for (const [token, status] of [[null, 401], [ctx.tokens.student, 403], [otherStudentToken, 403], [ctx.tokens.otherLecturer, 404]]) assert.equal((await withdrawal(s._id, action, 'Unauthorized change attempted', token)).status, status)
+    }
+    const stored = await Submission.findById(s._id).lean()
+    assert.equal(stored.withdrawnAt, null)
+    assert.equal(stored.withdrawalHistory.length, 0)
+  })
+
+  test('withdrawal validates reasons and IDs and ignores client-supplied grade or actor changes', async () => {
+    const s = (await upload((await assignment())._id)).body.submission
+    for (const reason of [null, {}, 123, '', '    ', 'abc', 'x'.repeat(1001)]) assert.equal((await withdrawal(s._id, 'withdraw', reason)).status, 400)
+    assert.equal((await withdrawal('invalid')).status, 400)
+    assert.equal((await withdrawal(new mongoose.Types.ObjectId().toString())).status, 404)
+    const result = await ctx.json(`/api/submissions/${s._id}/withdraw`, ctx.tokens.lecturer, { method: 'POST', body: JSON.stringify({ reason: '  Valid withdrawal reason  ', marks: 50, reviewStatus: 'Graded', withdrawnBy: ctx.otherLecturer._id, withdrawnAt: '2000-01-01' }) })
+    assert.equal(result.status, 200)
+    const value = result.body.submission
+    assert.equal(value.withdrawalReason, 'Valid withdrawal reason')
+    assert.equal(value.marks, null)
+    assert.equal(value.reviewStatus, 'Awaiting Review')
+    assert.equal(value.withdrawnBy._id, ctx.lecturer._id.toString())
+    assert.ok(new Date(value.withdrawnAt).getFullYear() > 2000)
+    assert.equal((await withdrawal(s._id, 'restore', '')).status, 400)
+    assert.ok((await Submission.findById(s._id).lean()).withdrawnAt)
+  })
+
+  test('repeat and concurrent withdrawal requests cannot overwrite the original reason or duplicate audit events', async () => {
+    const s = (await upload((await assignment())._id)).body.submission
+    const responses = await Promise.all([withdrawal(s._id, 'withdraw', 'First concurrent reason'), withdrawal(s._id, 'withdraw', 'Second concurrent reason')])
+    assert.deepEqual(responses.map((result) => result.status).sort(), [200, 409])
+    const before = await Submission.findById(s._id).lean()
+    assert.equal(before.withdrawalHistory.length, 1)
+    assert.equal((await withdrawal(s._id, 'withdraw', 'Retry must not overwrite original')).status, 409)
+    const after = await Submission.findById(s._id).lean()
+    assert.deepEqual(after.withdrawalHistory, before.withdrawalHistory)
+    assert.equal(after.withdrawalReason, before.withdrawalReason)
+    assert.deepEqual(after.withdrawnAt, before.withdrawnAt)
+  })
+
+  test('withdrawn attempts leave active lecturer queues but remain in owner audit and student history', async () => {
+    const a = await assignment()
+    const s = (await upload(a._id)).body.submission
+    await withdrawal(s._id)
+    const list = (view, token = ctx.tokens.lecturer) => ctx.json(`/api/submissions?assignment=${a._id}${view ? `&view=${view}` : ''}`, token)
+    assert.deepEqual((await list()).body.submissions, [])
+    assert.deepEqual((await list('active')).body.submissions, [])
+    for (const view of ['all', 'withdrawn']) assert.equal((await list(view)).body.submissions[0]._id, s._id)
+    for (const view of ['all', 'withdrawn']) assert.deepEqual((await list(view, ctx.tokens.otherLecturer)).body.submissions, [])
+    const studentHistory = await list(undefined, ctx.tokens.student)
+    assert.equal(studentHistory.body.submissions[0]._id, s._id)
+    assert.ok(studentHistory.body.submissions[0].withdrawnAt)
+    assert.equal(studentHistory.body.submissions[0].withdrawalReason, 'Duplicate attempt requested by student')
+    assert.equal((await details(s._id, otherStudentToken)).status, 404)
+    assert.deepEqual((await list('all', otherStudentToken)).body.submissions, [])
+    assert.equal((await list('invalid')).status, 400)
+  })
+
+  test('withdrawn submissions cannot be graded and restoration recovers the original published result with audit history', async () => {
+    const a = await assignment()
+    const s = (await upload(a._id)).body.submission
+    await review(s._id, { marks: 42, feedback: 'Preserve this exact feedback', reviewStatus: 'Graded' })
+    await withdrawal(s._id)
+    const before = await Submission.findById(s._id).lean()
+    assert.equal((await review(s._id, { marks: 1, feedback: 'Must not replace', reviewStatus: 'Graded' })).status, 409)
+    const restored = await withdrawal(s._id, 'restore', 'Withdrawal was made in error')
+    assert.equal(restored.status, 200)
+    assert.equal(restored.body.submission.withdrawnAt, null)
+    const after = await Submission.findById(s._id).lean()
+    for (const field of ['marks', 'feedback', 'reviewStatus', 'reviewedAt', 'files', 'compliance']) assert.deepEqual(after[field], before[field])
+    assert.deepEqual(after.withdrawalHistory.map((event) => event.action), ['Withdrawn', 'Restored'])
+    assert.equal(after.withdrawalHistory[1].reason, 'Withdrawal was made in error')
+    assert.equal((await details(s._id)).body.submission.marks, 42)
+    assert.equal((await ctx.json(`/api/submissions?assignment=${a._id}`, ctx.tokens.lecturer)).body.submissions.length, 1)
+    assert.equal((await withdrawal(s._id, 'restore', 'Repeat restore request')).status, 409)
+  })
+
+  test('withdrawal does not permit permanent assignment or submission deletion; closing retains history', async () => {
+    const a = await assignment()
+    const s = (await upload(a._id)).body.submission
+    await withdrawal(s._id)
+    assert.equal((await ctx.json(`/api/assignments/${a._id}`, ctx.tokens.lecturer, { method: 'DELETE' })).status, 409)
+    assert.equal((await ctx.json(`/api/submissions/${s._id}`, ctx.tokens.lecturer, { method: 'DELETE' })).status, 404)
+    assert.equal((await ctx.json(`/api/assignments/${a._id}`, ctx.tokens.lecturer, { method: 'PATCH', body: JSON.stringify({ status: 'Closed' }) })).status, 200)
+    assert.ok((await details(s._id)).body.submission.withdrawnAt)
+    const stored = await Submission.findById(s._id).lean()
+    assert.deepEqual(await readFile(path.join(ctx.storageRoot, stored.files[0].storagePath)), pdf)
+    await withdrawal(s._id, 'restore', 'Restoring retained academic record')
+    assert.equal((await ctx.json(`/api/assignments/${a._id}`, ctx.tokens.lecturer, { method: 'DELETE' })).status, 409)
+  })
+
+  test('withdrawal of a draft preserves draft privacy and supports legacy active records after reconnection', async () => {
+    const s = (await upload((await assignment())._id)).body.submission
+    await review(s._id, { marks: 25, feedback: 'Private draft', reviewStatus: 'Draft' })
+    await Submission.collection.updateOne({ _id: new mongoose.Types.ObjectId(s._id) }, { $unset: { withdrawnAt: '', withdrawnBy: '', withdrawalReason: '', withdrawalHistory: '' } })
+    assert.equal((await withdrawal(s._id)).status, 200)
+    await mongoose.disconnect()
+    await mongoose.connect(testMongoUri, { serverSelectionTimeoutMS: 5000, bufferTimeoutMS: 1500 })
+    const student = (await details(s._id)).body.submission
+    assert.ok(student.withdrawnAt)
+    assert.equal(student.marks, null)
+    assert.equal(student.feedback, '')
+    assert.equal(student.withdrawalHistory[0].actor._id, ctx.lecturer._id.toString())
+    const stored = await Submission.findById(s._id).lean()
+    assert.equal(stored.marks, 25)
+    assert.equal(stored.feedback, 'Private draft')
+  })
+
+  test('database failure on withdrawal returns 503 without changing the submission', async () => {
+    const s = (await upload((await assignment())._id)).body.submission
+    await mongoose.disconnect()
+    try {
+      const result = await withdrawal(s._id)
+      assert.equal(result.status, 503)
+      assert.ok(!/mongodb:\/\/|password|stack/i.test(JSON.stringify(result.body)))
+    } finally { await mongoose.connect(testMongoUri, { serverSelectionTimeoutMS: 5000, bufferTimeoutMS: 1500 }) }
+    assert.equal((await Submission.findById(s._id).lean()).withdrawnAt, null)
+  })
 
   test('stores a genuine PDF, metadata, requirements and pass results in MongoDB with private generated paths', async () => {
     const a = await assignment()

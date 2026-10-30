@@ -1,3 +1,4 @@
+import SubmissionWithdrawal from '../components/SubmissionWithdrawal'
 import TableScroll from '../components/TableScroll'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -6,7 +7,7 @@ import { fetchSubmissions } from '../api/submissions'
 import SubmissionChecks from '../components/SubmissionChecks'
 import SubmissionFiles from '../components/SubmissionFiles'
 
-const filters = ['All', 'Awaiting Review', 'Late', 'Under Review', 'Graded']
+const filters = ['All', 'Awaiting Review', 'Late', 'Under Review', 'Graded', 'Withdrawn']
 
 function StatusBadge({ value }) {
   return <span className={`submission-badge ${value.toLowerCase().replaceAll(' ', '-')}`}>{value}</span>
@@ -21,7 +22,7 @@ function SubmissionsPage() {
   useEffect(() => {
     fetchSubmissions().then(setSubmissions).catch((error) => setError(error.message)).finally(() => setLoading(false))
   }, [])
-  const visibleSubmissions = submissions.filter((submission) => filter === 'All' || (filter === 'Late' ? submission.timing === 'Late' : submission.status === filter))
+  const visibleSubmissions = submissions.filter((submission) => filter === 'All' || (filter === 'Late' ? !submission.withdrawnAt && submission.timing === 'Late' : submission.status === filter))
   const selectedSubmission = submissions.find((submission) => submission.id === selectedId) || visibleSubmissions[0]
   const selectedAssignment = selectedSubmission && { title: selectedSubmission.assignment, id: selectedSubmission.assignmentId, dueDate: new Date(selectedSubmission.requirements.deadline).toLocaleString() }
 
@@ -63,11 +64,11 @@ function SubmissionsPage() {
             {selectedSubmission && selectedAssignment && <aside className="submission-detail-panel">
               <div className="section-heading"><div><p className="eyebrow">Submission details</p><h2>{selectedAssignment.title}</h2></div><StatusBadge value={selectedSubmission.status} /></div>
               <div className="submission-detail-meta"><span><strong>Submitted</strong>{new Date(selectedSubmission.submittedAt).toLocaleString()}</span><span><strong>Deadline</strong>{selectedAssignment.dueDate}</span><span><strong>Mark</strong>{selectedSubmission.mark === '' ? 'Not available yet' : `${selectedSubmission.mark} / ${selectedSubmission.totalMarks}`}</span></div>
-              <div className="detail-block"><h4>Uploaded files</h4><SubmissionFiles submission={selectedSubmission} /></div>
+              <SubmissionWithdrawal submission={selectedSubmission} /><div className="detail-block"><h4>Uploaded files</h4><SubmissionFiles submission={selectedSubmission} /></div>
               <div className="detail-block"><h4>Automatic submission check</h4><SubmissionChecks compliance={selectedSubmission.compliance} /></div>
               <div className="detail-block"><h4>Deadline status</h4><p className={selectedSubmission.timing === 'Late' ? 'deadline-late' : ''}>{selectedSubmission.timing === 'Late' ? 'Submitted after the deadline.' : 'Submitted before the deadline.'}</p></div>
               <div className="detail-block"><h4>Lecturer feedback</h4><p>{selectedSubmission.feedback || 'No published lecturer feedback yet.'}</p></div>
-              {selectedSubmission.reviewStatus !== 'Graded' && <Link className="submit-button resubmit-button" to={`/student/assignments/${selectedAssignment.id}`}>Resubmit <span aria-hidden="true">→</span></Link>}
+              {selectedSubmission.assignmentStatus === 'Published' && (selectedSubmission.withdrawnAt || selectedSubmission.reviewStatus !== 'Graded') && <Link className="submit-button resubmit-button" to={`/student/assignments/${selectedAssignment.id}`}>Resubmit <span aria-hidden="true">→</span></Link>}
             </aside>}
           </div>
         </div>

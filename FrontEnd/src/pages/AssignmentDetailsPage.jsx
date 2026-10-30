@@ -1,3 +1,4 @@
+import SubmissionWithdrawal from '../components/SubmissionWithdrawal'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import StudentSidebar from '../components/StudentSidebar'
@@ -44,7 +45,7 @@ function AssignmentDetailsPage() {
 
     return { hasFiles, invalidFiles, oversizedFiles, isLate, missingRequiredTypes }
   }, [assignment, selectedFiles, labels])
-  const assignmentStatus = submission ? 'Submitted' : 'Not submitted'
+  const assignmentStatus = submission?.withdrawnAt ? 'Withdrawn' : submission ? 'Submitted' : 'Not submitted'
 
   const canSubmit = assignment?.status === 'Published' && checks.hasFiles && selectedFiles.length <= 20 && checks.invalidFiles.length === 0 && checks.oversizedFiles.length === 0 && (!checks.isLate || assignment.allowLateSubmissions) && !isUploading
 
@@ -110,7 +111,7 @@ function AssignmentDetailsPage() {
                 {assignment.status !== 'Published' && <p className="field-error">This assignment is closed for submissions.</p>}
                 {uploadError && <p className="field-error" role="alert">{uploadError}</p>}
                 {rejectedCompliance && <SubmissionChecks compliance={rejectedCompliance} />}
-                {submission && <div className="detail-block"><p className="submission-success" role="status">Submission saved on {new Date(submission.submittedAt).toLocaleString()}. {submission.timing}. {submission.reviewStatus}.</p><SubmissionFiles submission={submission} /><SubmissionChecks compliance={submission.compliance} /><Link to="/student/submissions">View submission history and feedback</Link></div>}
+                {submission && <div className="detail-block"><p className="submission-success" role="status">Submission saved on {new Date(submission.submittedAt).toLocaleString()}. {submission.timing}. {submission.reviewStatus}.</p><SubmissionWithdrawal submission={submission} /><SubmissionFiles submission={submission} /><SubmissionChecks compliance={submission.compliance} /><Link to="/student/submissions">View submission history and feedback</Link></div>}
                 <button className="submit-button" type="submit" disabled={!canSubmit}>{isUploading ? 'Uploading…' : submission ? 'Submit another attempt' : 'Submit assignment'} <span aria-hidden="true">→</span></button>
               </form>
             </section>

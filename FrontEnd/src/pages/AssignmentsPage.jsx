@@ -22,7 +22,7 @@ function AssignmentsPage() {
   useEffect(() => {
     Promise.all([fetchAssignments(), fetchSubmissions()]).then(([items, submissions]) => {
       setAssignments(items.map((assignment) => {
-        const latest = submissions.find((submission) => submission.assignmentId === assignment.id)
+        const latest = submissions.find((submission) => submission.assignmentId === assignment.id && !submission.withdrawnAt)
         return latest ? { ...assignment, studentStatus: latest.reviewStatus === 'Graded' ? 'Graded' : 'Submitted' } : assignment
       }))
     }).catch((requestError) => setError(requestError.message)).finally(() => setIsLoading(false))

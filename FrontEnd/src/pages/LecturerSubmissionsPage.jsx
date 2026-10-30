@@ -1,3 +1,6 @@
+import { useSearchParams } from 'react-router-dom'
+import SubmissionWithdrawal from '../components/SubmissionWithdrawal'
+import SubmissionWithdrawalDialog from '../components/SubmissionWithdrawalDialog'
 import useReviewPanel from '../hooks/useReviewPanel'
 import TableScroll from '../components/TableScroll'
 import { useEffect, useState } from 'react'
@@ -18,6 +21,10 @@ function StatusPill({ value, className = '' }) {
 }
 
 function LecturerSubmissionsPage() {
+  const [params] = useSearchParams()
+  const assignmentScope = params.get('assignment')
+  const [historyView, setHistoryView] = useState('active')
+  const [withdrawalAction, setWithdrawalAction] = useState(null)
   const [submissions, setSubmissions] = useState([])
   const [loading, setLoading] = useState(true)
   const [requestError, setRequestError] = useState('')
@@ -25,8 +32,8 @@ function LecturerSubmissionsPage() {
   const [notice, setNotice] = useState('')
   const assignmentFilters = ['All assignments', ...new Set(submissions.map((item) => item.assignment))]
   useEffect(() => {
-    fetchSubmissions().then(setSubmissions).catch((error) => setRequestError(error.message)).finally(() => setLoading(false))
-  }, [])
+    fetchSubmissions(assignmentScope, { view: 'all' }).then(setSubmissions).catch((error) => setRequestError(error.message)).finally(() => setLoading(false))
+  }, [assignmentScope])
   const [assignmentFilter, setAssignmentFilter] = useState('All assignments')
   const [statusFilter, setStatusFilter] = useState('All')
   const [search, setSearch] = useState('')
@@ -41,14 +48,16 @@ function LecturerSubmissionsPage() {
     const matchesAssignment = assignmentFilter === 'All assignments' || submission.assignment === assignmentFilter
     const matchesStatus = statusFilter === 'All' || (statusFilter === 'Late' ? submission.timing === 'Late' : submission.status === statusFilter)
     const matchesSearch = submission.student.toLowerCase().includes(search.trim().toLowerCase())
-    return matchesAssignment && matchesStatus && matchesSearch
+    const matchesHistory = historyView === 'all' || (historyView === 'withdrawn' ? Boolean(submission.withdrawnAt) : !submission.withdrawnAt)
+    return matchesAssignment && matchesStatus && matchesSearch && matchesHistory
   })
 
+  const activeSubmissions = submissions.filter((item) => !item.withdrawnAt)
   const summary = [
-    { label: 'Total submissions', value: submissions.length, tone: 'green' },
-    { label: 'Awaiting review', value: submissions.filter((submission) => submission.reviewStatus !== 'Graded').length, tone: 'blue' },
-    { label: 'Late submissions', value: submissions.filter((submission) => submission.timing === 'Late').length, tone: 'gold' },
-    { label: 'Graded submissions', value: submissions.filter((submission) => submission.status === 'Graded').length, tone: 'rose' },
+    { label: 'Active submissions', value: activeSubmissions.length, tone: 'green' },
+    { label: 'Awaiting review', value: activeSubmissions.filter((submission) => submission.reviewStatus !== 'Graded').length, tone: 'blue' },
+    { label: 'Late submissions', value: activeSubmissions.filter((submission) => submission.timing === 'Late').length, tone: 'gold' },
+    { label: 'Graded submissions', value: activeSubmissions.filter((submission) => submission.status === 'Graded').length, tone: 'rose' },
   ]
 
   function reviewSubmission(submission) {
@@ -70,7 +79,7 @@ function LecturerSubmissionsPage() {
   }
 
   async function persistReview(reviewStatus) {
-    if (saving) return
+    if (saving || selectedSubmission.withdrawnAt) return
     if ((reviewStatus === 'Graded' || draftMark !== '') && !validateMark()) return
     setSaving(true)
     setNotice('')
@@ -95,14 +104,16 @@ function LecturerSubmissionsPage() {
           <div>{loading && <p role="status">Loading submissions…</p>}{requestError && <p className="field-error" role="alert">{requestError}</p>}{notice && <p role="status">{notice}</p>}</div>
           <section className="submission-summary-grid" aria-label="Submission summary">{summary.map((item) => <article className="summary-card submission-summary-card" key={item.label}><div className="summary-card-top"><span className={`card-icon ${item.tone}-icon`}>◷</span><span className="card-label">{item.label}</span></div><p className="large-stat">{item.value}</p><p className="summary-meta">Across all assignments</p></article>)}</section>
 
+          <div className="field-group"><label htmlFor="submission-history-view">Submission history view</label><select id="submission-history-view" value={historyView} onChange={(event) => { setHistoryView(event.target.value); setStatusFilter('All'); setSelectedId(null) }}><option value="active">Active submissions</option><option value="withdrawn">Withdrawn submissions (audit)</option><option value="all">All submission history</option></select></div>
           <section className="submission-filter-panel" aria-label="Submission filters"><div className="submission-filter-field"><label htmlFor="assignment-filter">Assignment</label><select id="assignment-filter" value={assignmentFilter} onChange={(event) => setAssignmentFilter(event.target.value)}>{assignmentFilters.map((item) => <option key={item}>{item}</option>)}</select></div><div className="submission-filter-field"><label htmlFor="status-filter">Submission status</label><select id="status-filter" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>{statusFilters.map((item) => <option key={item}>{item}</option>)}</select></div><div className="submission-filter-field submission-search-field"><label htmlFor="student-search">Search student</label><input id="student-search" type="search" placeholder="Search by student name" value={search} onChange={(event) => setSearch(event.target.value)} /></div></section>
 
+          {withdrawalAction && <SubmissionWithdrawalDialog {...withdrawalAction} onClose={() => setWithdrawalAction(null)} onComplete={(updated) => { setSubmissions((current) => current.map((item) => item.id === updated.id ? updated : item)); setNotice(updated.withdrawnAt ? 'Submission withdrawn; academic history retained.' : 'Submission restored.'); setSelectedId(null) }} />}
           <div className="submission-management-layout">
             <section className="lecturer-assignment-table-wrap" aria-label="Student submission list">
-              {visibleSubmissions.length === 0 ? <div className="empty-state lecturer-empty"><strong>No submissions match these filters</strong><p>Try clearing a filter or searching for another student.</p></div> : <TableScroll className="lecturer-assignment-table-scroll" label="Student submissions"><table className="lecturer-assignment-table submissions-table"><thead><tr><th>Student</th><th>Assignment</th><th>Submitted</th><th>File</th><th>Automatic checks</th><th>Status</th><th>Mark</th><th>Action</th></tr></thead><tbody>{visibleSubmissions.map((submission) => <tr className={selectedId === submission.id ? 'selected' : ''} key={submission.id}><td><strong>{submission.student}</strong><small>{submission.email}</small></td><td>{submission.assignment}<small>{submission.subject}</small></td><td>{formatSubmittedAt(submission.submittedAt)}</td><td>{submission.fileName || 'No file uploaded'}{submission.fileType && <small>{submission.fileType} · {submission.fileSize}</small>}</td><td><StatusPill value={submission.automaticCheck} /></td><td><StatusPill value={submission.status} /></td><td>{submission.mark !== '' ? `${submission.mark} / ${submission.totalMarks}` : '—'}</td><td><button className="details-button" type="button" disabled={saving} aria-controls="submission-review-panel" aria-expanded={selectedId === submission.id} onClick={() => reviewSubmission(submission)}>Review</button></td></tr>)}</tbody></table></TableScroll>}
+              {visibleSubmissions.length === 0 ? <div className="empty-state lecturer-empty"><strong>No submissions match these filters</strong><p>Try clearing a filter or searching for another student.</p></div> : <TableScroll className="lecturer-assignment-table-scroll" label="Student submissions"><table className="lecturer-assignment-table submissions-table"><thead><tr><th>Student</th><th>Assignment</th><th>Submitted</th><th>File</th><th>Automatic checks</th><th>Status</th><th>Mark</th><th>Action</th></tr></thead><tbody>{visibleSubmissions.map((submission) => <tr className={selectedId === submission.id ? 'selected' : ''} key={submission.id}><td><strong>{submission.student}</strong><small>{submission.email}</small></td><td>{submission.assignment}<small>{submission.subject}</small></td><td>{formatSubmittedAt(submission.submittedAt)}</td><td>{submission.fileName || 'No file uploaded'}{submission.fileType && <small>{submission.fileType} · {submission.fileSize}</small>}</td><td><StatusPill value={submission.automaticCheck} /></td><td><StatusPill value={submission.status} /></td><td>{submission.mark !== '' ? `${submission.mark} / ${submission.totalMarks}` : '—'}</td><td><button className="details-button" type="button" disabled={saving} aria-controls="submission-review-panel" aria-expanded={selectedId === submission.id} onClick={() => reviewSubmission(submission)}>Review</button> <button className="delete-button" type="button" disabled={saving} onClick={() => setWithdrawalAction({ submission, action: submission.withdrawnAt ? 'restore' : 'withdraw' })}>{submission.withdrawnAt ? 'Restore' : 'Withdraw'}</button></td></tr>)}</tbody></table></TableScroll>}
             </section>
 
-            {selectedSubmission && <aside className="lecturer-assignment-detail submission-review-panel" id="submission-review-panel" ref={panelRef} tabIndex={-1} aria-labelledby="submission-review-panel-heading"><div className="section-heading"><div><p className="eyebrow">Review submission</p><h2 id="submission-review-panel-heading">{selectedSubmission.student}</h2></div><StatusPill value={selectedSubmission.status} /></div><p className="assignment-detail-subject">{selectedSubmission.assignment}</p><div className="assignment-detail-meta"><span><strong>Student</strong>{selectedSubmission.student}</span><span><strong>Assignment</strong>{selectedSubmission.assignment}</span><span><strong>Submitted</strong>{formatSubmittedAt(selectedSubmission.submittedAt)}</span></div><div className="detail-block"><h4>Uploaded file</h4><SubmissionFiles submission={selectedSubmission} /></div><div className="detail-block automatic-checks-panel"><h4>Automatic checks</h4><SubmissionChecks compliance={selectedSubmission.compliance} /></div>{selectedSubmission.status === 'Late' && <p className="review-message late-message">This submission was received after the assignment deadline.</p>}{selectedSubmission.status === 'Awaiting Review' && <p className="review-message awaiting-message">This submission is ready for your review.</p>}<form className="review-form" onSubmit={(event) => event.preventDefault()} noValidate><div className="field-group"><label htmlFor="lecturer-mark">Lecturer mark <small>(out of {selectedSubmission.totalMarks})</small></label><input id="lecturer-mark" disabled={saving} type="number" min="0" max={selectedSubmission.totalMarks} value={draftMark} onChange={(event) => { setDraftMark(event.target.value); setMarkError('') }} aria-invalid={Boolean(markError)} />{markError && <p className="field-error">{markError}</p>}</div><div className="field-group"><label htmlFor="lecturer-feedback">Lecturer feedback</label><textarea id="lecturer-feedback" disabled={saving} rows="4" value={draftFeedback} onChange={(event) => setDraftFeedback(event.target.value)} placeholder="Share feedback for the student" /></div><div className="review-actions"><button className="secondary-action-button" type="button" disabled={saving} onClick={() => persistReview('Draft')}>Save Draft</button><button className="primary-action-button" type="button" disabled={saving} onClick={() => persistReview('Graded')}>Publish Feedback <span aria-hidden="true">→</span></button></div></form></aside>}
+            {selectedSubmission && <aside className="lecturer-assignment-detail submission-review-panel" id="submission-review-panel" ref={panelRef} tabIndex={-1} aria-labelledby="submission-review-panel-heading"><div className="section-heading"><div><p className="eyebrow">Review submission</p><h2 id="submission-review-panel-heading">{selectedSubmission.student}</h2></div><StatusPill value={selectedSubmission.status} /></div><p className="assignment-detail-subject">{selectedSubmission.assignment}</p><div className="assignment-detail-meta"><span><strong>Student</strong>{selectedSubmission.student}</span><span><strong>Assignment</strong>{selectedSubmission.assignment}</span><span><strong>Submitted</strong>{formatSubmittedAt(selectedSubmission.submittedAt)}</span></div><div className="detail-block"><h4>Uploaded file</h4><SubmissionFiles submission={selectedSubmission} /></div><div className="detail-block automatic-checks-panel"><h4>Automatic checks</h4><SubmissionChecks compliance={selectedSubmission.compliance} /></div>{selectedSubmission.status === 'Late' && <p className="review-message late-message">This submission was received after the assignment deadline.</p>}{selectedSubmission.status === 'Awaiting Review' && <p className="review-message awaiting-message">This submission is ready for your review.</p>}<SubmissionWithdrawal submission={selectedSubmission} audit />{!selectedSubmission.withdrawnAt && <form className="review-form" onSubmit={(event) => event.preventDefault()} noValidate><div className="field-group"><label htmlFor="lecturer-mark">Lecturer mark <small>(out of {selectedSubmission.totalMarks})</small></label><input id="lecturer-mark" disabled={saving} type="number" min="0" max={selectedSubmission.totalMarks} value={draftMark} onChange={(event) => { setDraftMark(event.target.value); setMarkError('') }} aria-invalid={Boolean(markError)} />{markError && <p className="field-error">{markError}</p>}</div><div className="field-group"><label htmlFor="lecturer-feedback">Lecturer feedback</label><textarea id="lecturer-feedback" disabled={saving} rows="4" value={draftFeedback} onChange={(event) => setDraftFeedback(event.target.value)} placeholder="Share feedback for the student" /></div><div className="review-actions"><button className="secondary-action-button" type="button" disabled={saving} onClick={() => persistReview('Draft')}>Save Draft</button><button className="primary-action-button" type="button" disabled={saving} onClick={() => persistReview('Graded')}>Publish Feedback <span aria-hidden="true">→</span></button></div></form>}</aside>}
           </div>
         </div>
       </section>
