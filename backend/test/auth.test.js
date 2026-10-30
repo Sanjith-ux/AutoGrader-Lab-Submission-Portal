@@ -19,7 +19,7 @@ describe('authentication API (isolated test database)', { skip: !testMongoUri &&
   const me = (token) => ctx.json('/api/auth/me', token)
 
   before(async () => { ctx = await createTestContext() })
-  after(async () => { await ctx.cleanup() })
+  after(async () => { await ctx?.cleanup() })
 
   describe('registration', () => {
     test('creates an account without returning or storing the plaintext password', async () => {

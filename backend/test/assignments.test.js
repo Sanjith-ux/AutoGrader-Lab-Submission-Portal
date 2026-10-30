@@ -23,7 +23,7 @@ describe('assignment API (isolated test database)', { skip: !testMongoUri && 'se
   const body = (extra = {}) => JSON.stringify({ ...validPayload, title: `Assignment ${(counter += 1)}`, ...extra })
 
   before(async () => { ctx = await createTestContext() })
-  after(async () => { await ctx.cleanup() })
+  after(async () => { await ctx?.cleanup() })
 
   const create = (extra = {}, token = ctx.tokens.lecturer) => ctx.json('/api/assignments', token, { method: 'POST', body: body(extra) })
   const patch = (id, change, token = ctx.tokens.lecturer) => ctx.json(`/api/assignments/${id}`, token, { method: 'PATCH', body: JSON.stringify(change) })
@@ -216,15 +216,29 @@ describe('assignment API (isolated test database)', { skip: !testMongoUri && 'se
 
   describe('database failure', () => {
     test('answers 503 with a generic message instead of crashing, then recovers', async () => {
+      const created = (await create()).body.assignment
+      assert.equal((await patch(created._id, { title: 'Persisted across reconnection', totalMarks: 91 })).status, 200)
+      const deleted = (await create()).body.assignment
+      assert.equal((await ctx.json(`/api/assignments/${deleted._id}`, ctx.tokens.lecturer, { method: 'DELETE' })).status, 200)
       await mongoose.connection.close()
       try {
         const { status, body: result } = await ctx.json('/api/assignments', ctx.tokens.lecturer)
         assert.equal(status, 503)
         assert.ok(!/mongo|buffering|users\./i.test(JSON.stringify(result)), 'internal details must not leak')
       } finally {
-        await mongoose.connect(testMongoUri, { bufferTimeoutMS: 1500 })
+        await mongoose.connect(testMongoUri, { bufferTimeoutMS: 1500, serverSelectionTimeoutMS: 5000 })
       }
-      assert.equal((await ctx.json('/api/assignments', ctx.tokens.lecturer)).status, 200)
+      const listed = await ctx.json('/api/assignments', ctx.tokens.lecturer)
+      assert.equal(listed.status, 200)
+      assert.ok(listed.body.assignments.some((item) => item._id === created._id && item.totalMarks === 91))
+      const details = await ctx.json(`/api/assignments/${created._id}`, ctx.tokens.lecturer)
+      assert.equal(details.status, 200)
+      assert.equal(details.body.assignment.title, 'Persisted across reconnection')
+      const stored = await Assignment.findById(created._id).lean()
+      assert.equal(stored.totalMarks, 91)
+      assert.equal(stored.lecturer.toString(), ctx.lecturer._id.toString())
+      assert.equal(await Assignment.exists({ _id: deleted._id }), null)
+      assert.equal((await ctx.json(`/api/assignments/${deleted._id}`, ctx.tokens.lecturer)).status, 404)
     })
   })
 })

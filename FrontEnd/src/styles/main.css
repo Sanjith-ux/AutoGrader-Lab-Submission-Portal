@@ -132,7 +132,9 @@ input[aria-invalid='true'] { border-color: #bc5d53; }
   .student-dashboard { display: block; }
   .student-sidebar { width: 100%; padding: 1rem; }
   .sidebar-brand { padding: 0 .4rem 1.25rem; }
-  .sidebar-section-label, .sidebar-nav { display: none; }
+  .sidebar-section-label { display: none; }
+  .sidebar-nav { display: flex; flex-direction: row; gap: .4rem; overflow-x: auto; padding-bottom: .4rem; }
+  .sidebar-nav .sidebar-link { flex: 0 0 auto; white-space: nowrap; width: auto; }
   .logout-button { border-top: 0; margin: 0; padding: .7rem .4rem 0; width: auto; }
   .student-header { padding: 2rem 1.25rem; }
   .student-header h1 { font-size: 2rem; }
@@ -353,3 +355,12 @@ input[aria-invalid='true'] { border-color: #bc5d53; }
 .marks-success { background: #e8f1e4; border-radius: 7px; color: #397056; font-size: .75rem; margin: 1rem 0 0; padding: .75rem .85rem; }
 @media (max-width: 1050px) { .marks-management-summary { grid-template-columns: 1fr 1fr; } .marks-management-layout { grid-template-columns: 1fr; } }
 @media (max-width: 700px) { .marks-filter-panel { grid-template-columns: 1fr; } .marks-review-actions { grid-template-columns: 1fr; } }
+/* Keep file metadata and table scrollers inside their responsive columns. */
+.submission-table-wrap, .marks-table-wrap, .lecturer-assignment-table-wrap { min-width: 0; }
+.uploaded-file > span { display: grid; flex: 1; gap: .15rem; min-width: 0; }
+.uploaded-file > button { flex-shrink: 0; }
+.selected-file > span { min-width: 0; }
+.selected-file strong { overflow-wrap: anywhere; }
+.selected-file label { display: grid; gap: .35rem; margin-top: .5rem; }
+.selected-file select { max-width: 100%; min-width: 0; width: 100%; }
+.submission-check > div { min-width: 0; overflow-wrap: anywhere; }

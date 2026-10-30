@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import StudentSidebar from '../components/StudentSidebar'
 import { fetchAssignments } from '../api/assignments'
+import { fetchSubmissions } from '../api/submissions'
 
 const filters = ['All', 'Pending', 'Submitted', 'Overdue']
 
@@ -19,7 +20,12 @@ function AssignmentsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   useEffect(() => {
-    fetchAssignments().then(setAssignments).catch((requestError) => setError(requestError.message)).finally(() => setIsLoading(false))
+    Promise.all([fetchAssignments(), fetchSubmissions()]).then(([items, submissions]) => {
+      setAssignments(items.map((assignment) => {
+        const latest = submissions.find((submission) => submission.assignmentId === assignment.id)
+        return latest ? { ...assignment, studentStatus: latest.reviewStatus === 'Graded' ? 'Graded' : 'Submitted' } : assignment
+      }))
+    }).catch((requestError) => setError(requestError.message)).finally(() => setIsLoading(false))
   }, [])
   const visibleAssignments = assignments.filter((assignment) => matchesFilter(assignment, filter))
 

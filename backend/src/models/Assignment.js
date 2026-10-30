@@ -14,6 +14,7 @@ export const assignmentLimits = {
 }
 
 const assignmentSchema = new mongoose.Schema({
+  submissionCount: { type: Number, default: 0, min: 0, select: false },
   title: { type: String, required: [true, 'Assignment title is required'], trim: true, maxlength: [assignmentLimits.title, `Assignment title must be ${assignmentLimits.title} characters or fewer`] },
   module: { type: String, required: [true, 'Module is required'], trim: true, maxlength: [assignmentLimits.module, `Module must be ${assignmentLimits.module} characters or fewer`] },
   description: { type: String, required: [true, 'Description is required'], trim: true, maxlength: [assignmentLimits.description, `Description must be ${assignmentLimits.description} characters or fewer`] },

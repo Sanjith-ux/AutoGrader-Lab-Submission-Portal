@@ -1,62 +1,13 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import StudentSidebar from '../components/StudentSidebar'
+import { fetchAssignments } from '../api/assignments'
+import { fetchSubmissions } from '../api/submissions'
 
 const filters = ['All', 'Graded', 'Under Review', 'Not Submitted']
 
-const marksRecords = [
-  {
-    id: 'hci-observation',
-    title: 'HCI Observation Report',
-    subject: 'Human Computer Interaction',
-    submissionDate: '02 Oct 2026',
-    mark: '82 / 100',
-    status: 'Graded',
-    lecturer: 'Dr. Amina Malik',
-    feedback: 'A thoughtful report with clear observations and a well-organised analysis of the user sessions.',
-    strengths: 'Your observation notes are detailed, and you connected the findings to the usability principles covered in the lab.',
-    improvements: 'Support the final recommendations with two more specific examples from your observation data.',
-    reviewedDate: '06 Oct 2026',
-  },
-  {
-    id: 'network-topology',
-    title: 'Network Topology Design',
-    subject: 'Network Design',
-    submissionDate: '29 Sep 2026',
-    mark: '—',
-    status: 'Under Review',
-    lecturer: 'J. Roberts',
-    feedback: '',
-    strengths: '',
-    improvements: '',
-    reviewedDate: '',
-  },
-  {
-    id: 'database-queries',
-    title: 'Database Query Results',
-    subject: 'Database Systems',
-    submissionDate: '01 Oct 2026',
-    mark: '74 / 100',
-    status: 'Graded',
-    lecturer: 'Prof. Daniel Perera',
-    feedback: 'Good use of indexes and clear comparison of query performance across the test cases.',
-    strengths: 'Your query structure is efficient and the results table makes the performance differences easy to follow.',
-    improvements: 'Explain the trade-offs of each indexing choice in more detail in the discussion section.',
-    reviewedDate: '04 Oct 2026',
-  },
-  {
-    id: 'programming-reflection',
-    title: 'Programming Lab Reflection',
-    subject: 'Software Engineering',
-    submissionDate: 'Not submitted',
-    mark: '—',
-    status: 'Not Submitted',
-    lecturer: 'Dr. Meera Shah',
-    feedback: '',
-    strengths: '',
-    improvements: '',
-    reviewedDate: '',
-  },
-]
+function formatDate(value) {
+  return value ? new Date(value).toLocaleDateString('en-GB') : 'Not submitted'
+}
 
 function StatusBadge({ status }) {
   return <span className={`marks-status ${status.toLowerCase().replaceAll(' ', '-')}`}>{status}</span>
@@ -64,11 +15,40 @@ function StatusBadge({ status }) {
 
 function MarksFeedbackPage() {
   const [filter, setFilter] = useState('All')
-  const [selectedId, setSelectedId] = useState(marksRecords[0].id)
+  const [selectedId, setSelectedId] = useState(null)
+  const [marksRecords, setMarksRecords] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  useEffect(() => {
+    let current = true
+    Promise.all([fetchAssignments(), fetchSubmissions()]).then(([assignments, submissions]) => {
+      if (!current) return
+      // The API sorts newest first; show each assignment's latest attempt.
+      const latest = new Map()
+      for (const submission of submissions) if (!latest.has(submission.assignmentId)) latest.set(submission.assignmentId, submission)
+      const records = [...latest.values()].map((submission) => ({
+        id: submission.id,
+        title: submission.assignment,
+        subject: submission.subject,
+        submissionDate: formatDate(submission.submittedAt),
+        mark: submission.mark === '' ? '—' : `${submission.mark} / ${submission.totalMarks}`,
+        percentage: submission.mark === '' ? null : Number(submission.mark) / submission.totalMarks * 100,
+        status: submission.reviewStatus === 'Graded' ? 'Graded' : 'Under Review',
+        lecturer: submission.reviewedBy?.name || 'Awaiting lecturer review',
+        feedback: submission.feedback,
+        reviewedAt: submission.reviewStatus === 'Graded' ? submission.reviewedAt : null,
+        reviewedDate: submission.reviewStatus === 'Graded' ? formatDate(submission.reviewedAt) : '',
+      }))
+      for (const assignment of assignments) if (!latest.has(assignment.id)) records.push({ id: assignment.id, title: assignment.title, subject: assignment.subject, submissionDate: 'Not submitted', mark: '—', percentage: null, status: 'Not Submitted', lecturer: assignment.lecturer?.name || '', feedback: '', reviewedAt: null, reviewedDate: '' })
+      setMarksRecords(records)
+    }).catch((error) => { if (current) setError(error.message) }).finally(() => { if (current) setLoading(false) })
+    return () => { current = false }
+  }, [])
   const visibleRecords = marksRecords.filter((record) => filter === 'All' || record.status === filter)
   const selectedRecord = visibleRecords.find((record) => record.id === selectedId) || visibleRecords[0]
   const gradedRecords = marksRecords.filter((record) => record.status === 'Graded')
-  const overallAverage = Math.round(gradedRecords.reduce((total, record) => total + Number.parseInt(record.mark, 10), 0) / gradedRecords.length)
+  const overallAverage = gradedRecords.length ? Math.round(gradedRecords.reduce((total, record) => total + record.percentage, 0) / gradedRecords.length) : 0
+  const mostRecent = [...gradedRecords].sort((a, b) => new Date(b.reviewedAt) - new Date(a.reviewedAt))[0]
 
   return (
     <main className="student-dashboard">
@@ -84,11 +64,12 @@ function MarksFeedbackPage() {
         </header>
 
         <div className="student-content marks-feedback-content">
+          {loading && <p role="status">Loading marks and feedback…</p>}{error && <p className="field-error" role="alert">{error}</p>}
           <section className="marks-summary" aria-label="Marks summary">
             <article className="summary-card"><div className="summary-card-top"><span className="card-icon green-icon">%</span><span className="card-label">Overall average mark</span></div><p className="large-stat">{overallAverage}<span>%</span></p><p className="summary-meta">Across graded assignments</p></article>
             <article className="summary-card"><div className="summary-card-top"><span className="card-icon blue-icon">✓</span><span className="card-label">Assignments graded</span></div><p className="large-stat">{gradedRecords.length}</p><p className="summary-meta">Feedback is available to review</p></article>
             <article className="summary-card"><div className="summary-card-top"><span className="card-icon gold-icon">◷</span><span className="card-label">Awaiting review</span></div><p className="large-stat">{marksRecords.filter((record) => record.status === 'Under Review').length}</p><p className="summary-meta">Lecturer feedback is pending</p></article>
-            <article className="summary-card"><div className="summary-card-top"><span className="card-icon rose-icon">↗</span><span className="card-label">Most recent feedback</span></div><p className="marks-date-stat">06 Oct</p><p className="summary-meta">HCI Observation Report</p></article>
+            <article className="summary-card"><div className="summary-card-top"><span className="card-icon rose-icon">↗</span><span className="card-label">Most recent feedback</span></div><p className="marks-date-stat">{mostRecent?.reviewedDate || '—'}</p><p className="summary-meta">{mostRecent?.title || 'No published feedback yet'}</p></article>
           </section>
 
           <div className="assignment-toolbar marks-toolbar">
@@ -100,7 +81,7 @@ function MarksFeedbackPage() {
 
           <div className="marks-layout">
             <section className="marks-table-wrap" aria-label={`${filter} marks and feedback`}>
-              {visibleRecords.length === 0 ? <div className="empty-state marks-empty"><strong>No marks or feedback</strong><p>There are no assignments matching this filter yet.</p></div> : (
+              {loading || error ? null : visibleRecords.length === 0 ? <div className="empty-state marks-empty"><strong>No marks or feedback</strong><p>There are no assignments matching this filter yet.</p></div> : (
                 <div className="marks-table-scroll">
                   <table className="marks-table">
                     <thead><tr><th>Assignment</th><th>Submitted</th><th>Mark</th><th>Status</th><th /></tr></thead>
@@ -121,8 +102,6 @@ function MarksFeedbackPage() {
               <div className="marks-detail-meta"><span><strong>Subject</strong>{selectedRecord.subject}</span><span><strong>Submission date</strong>{selectedRecord.submissionDate}</span><span><strong>Mark</strong>{selectedRecord.mark}</span><span><strong>Lecturer</strong>{selectedRecord.lecturer}</span></div>
               {selectedRecord.status === 'Graded' ? <>
                 <div className="detail-block"><h4>Feedback comments</h4><p>{selectedRecord.feedback}</p></div>
-                <div className="detail-block"><h4>Strengths</h4><p>{selectedRecord.strengths}</p></div>
-                <div className="detail-block"><h4>Suggested improvements</h4><p>{selectedRecord.improvements}</p></div>
                 <div className="detail-block"><h4>Date reviewed</h4><p>{selectedRecord.reviewedDate}</p></div>
               </> : <div className={`marks-notice ${selectedRecord.status === 'Not Submitted' ? 'not-submitted-notice' : ''}`}><h4>{selectedRecord.status === 'Under Review' ? 'Feedback is on its way' : 'No feedback available yet'}</h4><p>{selectedRecord.status === 'Under Review' ? 'Your lecturer is still reviewing this submission. The mark and detailed feedback will appear here once the review is complete.' : 'Submit this assignment to receive a mark and lecturer feedback.'}</p></div>}
             </aside>}

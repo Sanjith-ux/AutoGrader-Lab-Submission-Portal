@@ -1,6 +1,6 @@
 # LabTrack backend
 
-The backend is an Express API backed by MongoDB through Mongoose. Authentication uses JWT access tokens and bcryptjs password hashing.
+The backend is an Express API backed by MongoDB through Mongoose. Authentication uses JWT access tokens and bcryptjs password hashing. Node.js 22 or newer is required.
 
 ## Setup
 
@@ -58,7 +58,30 @@ All assignment endpoints require a valid bearer token.
 
 Limits are defined once in the model and enforced both by the schema and by request validation. Indexes: `lecturer + status + deadline` for list queries, and a unique, case-insensitive `lecturer + module + title` index so a lecturer cannot create duplicate assignments. Mongoose builds these indexes when the server connects; no existing documents are modified.
 
-Relationships: each assignment references its owning lecturer. There is no Submission model yet, so no assignment–submission relationship exists. When one is added it should reference `Assignment` and `User` (student), and `deleteAssignment` in `src/controllers/assignments.js` should refuse to delete (or cascade) assignments that already have submissions.
+Relationships: each assignment references its owning lecturer. Submissions reference both an assignment and a student. Assignment deletion returns `409` if submissions exist or an upload is in progress; close the assignment to stop new uploads while preserving records. An atomic upload reservation prevents deletion races on standalone MongoDB as well as replica sets.
+
+## Persistent student submissions
+
+| Method | Path | Access |
+| --- | --- | --- |
+| `POST` | `/api/submissions/assignments/:assignmentId` | Student; Published assignment only |
+| `GET` | `/api/submissions` | Student's own submissions, or submissions for the lecturer's own assignments |
+| `GET` | `/api/submissions?assignment=:id` | Same ownership rules, filtered by assignment |
+| `GET` | `/api/submissions/:id` | Submitting student or owning lecturer |
+| `GET` | `/api/submissions/:id/files/:fileId` | Protected attachment download; same ownership rules |
+| `PATCH` | `/api/submissions/:id/review` | Owning lecturer only |
+
+Upload `multipart/form-data` with repeated `files` parts and exactly one `attachments` field containing a JSON array of labels in file order, for example `["Report", "Source files"]`. Labels match the assignment's `requiredFiles` case-insensitively after trimming; use an empty string for a supporting attachment. These labels describe attachment roles; they do not require every allowed format to be uploaded and do not verify the academic content of a file.
+
+The server allows at most 20 files per attempt and applies the assignment's maximum size **per file** while streaming to disk. It checks binary file signatures against extensions for PDF, DOCX, JPG/JPEG, PNG and ZIP, then checks the assignment's allowed formats. ZIP/DOCX containers must have a valid directory, safe entry names, no encryption, at most 10,000 entries and at most 500 MB declared expanded size. DOCX must contain its content-types and Word document entries. Archives are never extracted or executed. This is format checking, not malware scanning or full document parsing.
+
+Format, size, malformed upload and prohibited-late failures are rejected and their temporary files are removed. Allowed-late submissions and submissions missing required attachment labels are saved with explicit failed checks so the lecturer can review the work. The deadline is measured by the server when receiving and validating the complete upload, and is rechecked after upload. Each successful attempt is a separate immutable history record; resubmission does not replace prior files or marks.
+
+`Submission` stores file metadata and generated relative storage paths, the timestamp, On time/Late status, a snapshot of the assignment requirements and maximum marks, separate compliance results, review status, marks, feedback and reviewer. Reviews accept `{ "reviewStatus": "Draft" | "Graded", "marks": number | null, "feedback": string }`. A draft may be unmarked; publishing requires marks from zero through the saved maximum. Students see marks and feedback only after publication. Automatic checks never calculate or change lecturer marks.
+
+Files persist under `backend/storage/submissions` by default, outside the frontend and all static routes. Set `SUBMISSION_STORAGE_DIR` to an absolute private directory to use another disk. Upload directories and filenames use server-generated UUIDs; original filenames are metadata only. API JSON excludes storage paths, and downloads require a bearer token and an ownership check on every request. Keep both MongoDB and this directory across server restarts and back them up together; local files are not stored inside MongoDB. Do not expose the storage directory through a static web server.
+
+Tests use a fresh private temporary upload directory per process. Rejected and interrupted uploads are cleaned up; successful test fixtures are deleted in teardown. A hard process crash can leave an unreferenced upload directory or a conservative assignment reservation; automatic crash recovery and storage retention management are not implemented. Such reservations deliberately block deletion rather than risk orphaning a submission.
 
 ### Business rules and status codes
 
@@ -86,10 +109,21 @@ Relationships: each assignment references its owning lecturer. There is no Submi
 npm test
 ```
 
-Without a test database, only the database-free unit tests run (assignment validation, ID checks, rate limiter, error handler, security headers). The database-backed API tests (authentication, authorization, assignment CRUD, duplicate titles, database outage) run when `MONGODB_TEST_URI` is set. They create and remove their own users and assignments, never read `.env`, never use the real `JWT_SECRET`, and refuse to run unless the database name contains `test` and differs from `MONGODB_URI`.
+Without a test database, only the database-free unit tests run (assignment validation, ID checks, rate limiter, error handler, security headers, database safeguards). The database-backed API tests (authentication, authorization, assignment CRUD, duplicate titles, database outage and persistence after reconnection) run when `MONGODB_TEST_URI` is set. They create and remove only their own users and assignments; they never drop a database or clear a collection. Test connections use only `MONGODB_TEST_URI` and a fixed test JWT secret. The safety guard reads `backend/.env` only to compare its `MONGODB_URI` database name, without loading environment values or using those credentials.
+
+The database name must end in `_test` and must differ from both the environment and `.env` development database names, even when their hosts, credentials, or options differ. Database-name query overrides are rejected. Cleanup rechecks the connected database before deleting test fixtures. Invalid or unreachable test configurations fail rather than falling back to the development database.
 
 ```bash
-MONGODB_TEST_URI=mongodb://127.0.0.1:27017/labtrack_assignment_test npm test
+MONGODB_TEST_URI=mongodb://127.0.0.1:27028/labtrack_portal_test npm test
 ```
+
+For complete local isolation, start a separate MongoDB process on port `27028` with a fresh temporary storage directory first:
+
+```bash
+test_db_dir=$(mktemp -d /private/tmp/labtrack-mongo-test.XXXXXX)
+mongod --dbpath "$test_db_dir" --bind_ip 127.0.0.1 --port 27028
+```
+
+Run the test command in a second terminal, then stop that temporary MongoDB process with Ctrl-C. The URI is scoped to the test command; no `.env` edit or credentials are needed. Do not point this process at your existing MongoDB storage directory.
 
 Shared test setup lives in `testing/context.js`; the tests are in `test/`.

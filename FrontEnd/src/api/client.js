@@ -13,22 +13,24 @@ export async function apiRequest(path, options = {}) {
   let response
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
+      ...options,
       headers: {
-        'Content-Type': 'application/json',
+        ...(!(options.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}),
         ...(localStorage.getItem(TOKEN_KEY) ? { Authorization: `Bearer ${localStorage.getItem(TOKEN_KEY)}` } : {}),
         ...options.headers,
       },
-      ...options,
     })
   } catch {
     throw new Error('Unable to connect to LabTrack. Check that the backend is running.')
   }
 
+  if (response.ok && options.responseType === 'blob') return response.blob()
   const data = await response.json().catch(() => ({}))
   if (!response.ok) {
     const detail = data.errors?.join(' ') || data.message
     const error = new Error(statusMessages[response.status] || detail || 'The request could not be completed.')
     error.status = response.status
+    error.compliance = data.compliance
     throw error
   }
   return data

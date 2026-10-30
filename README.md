@@ -33,6 +33,14 @@ Lecturer: **Assignments** in the sidebar.
 - **Update** — *Edit*, change values, then save. Drafts can be saved or published; Published and Closed assignments keep their status and cannot return to Draft.
 - **Delete** — *Delete* asks for confirmation. Only the owning lecturer can delete.
 
+## Submissions and feedback
+
+Students upload files from **Assignments → View assignment** and see persisted attempts, automatic checks and published feedback under **My Submissions**. **Marks & Feedback** shows the latest attempt for each assignment and calculates percentages using the saved maximum marks.
+
+Lecturers can download protected reports and save draft or published marks from **Student Submissions** or **Marks & Feedback**. Both pages use the same MongoDB submission records. Draft marks and feedback remain private to lecturers. Feedback uses the persisted comments field; there are no separate strengths or improvements fields in the API.
+
+Assignments with submissions or uploads in progress cannot be deleted. Close them instead. File bytes live in private backend storage, so keep that directory together with MongoDB across restarts. See [backend/README.md](backend/README.md) for upload limits and configuration.
+
 ## Checks
 
 ```bash

@@ -1,4 +1,5 @@
 import Assignment, { allowedFileTypeValues, assignmentLimits, assignmentStatuses } from '../models/Assignment.js'
+import Submission from '../models/Submission.js'
 import { isValidObjectId } from '../utils/objectId.js'
 
 const fields = ['title', 'module', 'description', 'submissionRequirements', 'deadline', 'totalMarks', 'allowedFileTypes', 'requiredFiles', 'maxFileSizeMB', 'lateSubmissionAllowed', 'status']
@@ -183,7 +184,15 @@ export async function deleteAssignment(req, res, next) {
       res.status(404).json({ message: 'Assignment not found or you do not own it.' })
       return
     }
-    await assignment.deleteOne()
+    if (await Submission.exists({ assignment: assignment._id })) {
+      res.status(409).json({ message: 'Assignments with submissions cannot be deleted. Close the assignment instead.' })
+      return
+    }
+    const deleted = await Assignment.findOneAndDelete({ _id: assignment._id, lecturer: req.user._id, $or: [{ submissionCount: 0 }, { submissionCount: { $exists: false } }] })
+    if (!deleted) {
+      res.status(409).json({ message: 'This assignment has submissions or an upload in progress. Close it instead.' })
+      return
+    }
     res.json({ message: 'Assignment deleted successfully.' })
   } catch (error) {
     next(error)

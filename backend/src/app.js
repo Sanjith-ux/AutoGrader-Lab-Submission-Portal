@@ -3,6 +3,7 @@ import express from 'express'
 import authRoutes from './routes/auth.js'
 import labSessionRoutes from './routes/labSessions.js'
 import assignmentRoutes from './routes/assignments.js'
+import submissionRoutes from './routes/submissions.js'
 import { errorHandler, notFound } from './middleware/errorHandler.js'
 import { getAllowedOrigins, securityHeaders } from './middleware/security.js'
 
@@ -20,6 +21,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes)
 app.use('/api/lab-sessions', labSessionRoutes)
 app.use('/api/assignments', assignmentRoutes)
+app.use('/api/submissions', submissionRoutes)
 
 app.use('/api', notFound)
 app.use(errorHandler)

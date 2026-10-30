@@ -22,6 +22,12 @@ export function errorHandler(error, req, res, next) {
     return
   }
 
+  if (error.name === 'MulterError') {
+    const oversized = error.code === 'LIMIT_FILE_SIZE'
+    res.status(oversized ? 413 : 400).json({ message: oversized ? 'A file exceeds the assignment size limit.' : 'Invalid upload. Use the files field, at most 20 files, and one attachments field.' })
+    return
+  }
+
   if (error.type === 'entity.parse.failed') {
     res.status(400).json({ message: 'Request body must be valid JSON.' })
     return
@@ -48,7 +54,7 @@ export function errorHandler(error, req, res, next) {
     return
   }
   if (Number.isInteger(error.status) && error.status >= 400 && error.status < 500) {
-    res.status(error.status).json({ message: error.message, ...(error.details ? { errors: error.details } : {}) })
+    res.status(error.status).json({ message: error.message, ...(error.details ? { errors: error.details } : {}), ...(error.compliance ? { compliance: error.compliance } : {}) })
     return
   }
 

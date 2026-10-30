@@ -14,7 +14,6 @@ export function assignmentToUi(assignment) {
     dueDate: new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' }).format(deadline),
     instructions: assignment.description,
     requiredExtensions: assignment.allowedFileTypes.map((type) => type.toLowerCase()),
-    submissions: 0,
     studentStatus: deadline < new Date() ? 'Late' : 'Not submitted',
   }
 }
