@@ -1,4 +1,4 @@
-const defaultOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173']
+const defaultOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5174', 'http://127.0.0.1:5174']
 
 export function getAllowedOrigins() {
   const configured = process.env.CORS_ORIGIN

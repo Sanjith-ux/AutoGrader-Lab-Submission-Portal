@@ -245,6 +245,8 @@ describe('security headers and CORS', () => {
     const original = process.env.CORS_ORIGIN
     delete process.env.CORS_ORIGIN
     assert.ok(getAllowedOrigins().includes('http://localhost:5173'))
+    assert.ok(getAllowedOrigins().includes('http://localhost:5174'))
+    assert.ok(getAllowedOrigins().includes('http://127.0.0.1:5174'))
     process.env.CORS_ORIGIN = 'https://a.example, https://b.example'
     assert.deepEqual(getAllowedOrigins(), ['https://a.example', 'https://b.example'])
     if (original === undefined) delete process.env.CORS_ORIGIN

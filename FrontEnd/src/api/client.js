@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api'
+import { API_BASE_URL } from './config.js'
 const TOKEN_KEY = 'labtrack_token'
 
 // Messages for statuses where the server text is less helpful than a clear instruction.
