@@ -1,3 +1,4 @@
+import TableScroll from '../components/TableScroll'
 import { useEffect, useState } from 'react'
 import StudentSidebar from '../components/StudentSidebar'
 import { fetchAssignments } from '../api/assignments'
@@ -82,7 +83,7 @@ function MarksFeedbackPage() {
           <div className="marks-layout">
             <section className="marks-table-wrap" aria-label={`${filter} marks and feedback`}>
               {loading || error ? null : visibleRecords.length === 0 ? <div className="empty-state marks-empty"><strong>No marks or feedback</strong><p>There are no assignments matching this filter yet.</p></div> : (
-                <div className="marks-table-scroll">
+                <TableScroll className="marks-table-scroll" label="My marks and feedback">
                   <table className="marks-table">
                     <thead><tr><th>Assignment</th><th>Submitted</th><th>Mark</th><th>Status</th><th /></tr></thead>
                     <tbody>{visibleRecords.map((record) => <tr className={selectedRecord?.id === record.id ? 'selected' : ''} key={record.id}>
@@ -93,7 +94,7 @@ function MarksFeedbackPage() {
                       <td><button className="details-button" type="button" onClick={() => setSelectedId(record.id)}>View feedback</button></td>
                     </tr>)}</tbody>
                   </table>
-                </div>
+                </TableScroll>
               )}
             </section>
 

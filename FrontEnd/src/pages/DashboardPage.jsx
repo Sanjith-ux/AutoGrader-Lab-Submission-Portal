@@ -1,3 +1,4 @@
+import TableScroll from '../components/TableScroll'
 import { useNavigate } from 'react-router-dom'
 import LecturerSidebar from '../components/LecturerSidebar'
 
@@ -47,7 +48,7 @@ function DashboardPage() {
           <div className="lecturer-columns">
             <section className="dashboard-section lecturer-panel">
               <div className="section-heading"><div><p className="eyebrow">This week</p><h2>Upcoming Lab Sessions</h2></div><button className="section-link" type="button">View schedule <span aria-hidden="true">→</span></button></div>
-              <div className="lecturer-table-scroll"><table className="lecturer-table"><thead><tr><th>Lab name</th><th>Date &amp; time</th><th>Room</th><th>Students</th></tr></thead><tbody>{upcomingLabs.map((lab) => <tr key={lab.name}><td><strong>{lab.name}</strong></td><td>{lab.date}<small>{lab.time}</small></td><td>{lab.room}</td><td>{lab.students}</td></tr>)}</tbody></table></div>
+              <TableScroll className="lecturer-table-scroll" label="Upcoming lab sessions"><table className="lecturer-table"><thead><tr><th>Lab name</th><th>Date &amp; time</th><th>Room</th><th>Students</th></tr></thead><tbody>{upcomingLabs.map((lab) => <tr key={lab.name}><td><strong>{lab.name}</strong></td><td>{lab.date}<small>{lab.time}</small></td><td>{lab.room}</td><td>{lab.students}</td></tr>)}</tbody></table></TableScroll>
             </section>
 
             <section className="dashboard-section lecturer-panel">

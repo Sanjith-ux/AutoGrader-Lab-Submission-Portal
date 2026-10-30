@@ -1,3 +1,4 @@
+import TableScroll from '../components/TableScroll'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import StudentSidebar from '../components/StudentSidebar'
@@ -45,7 +46,7 @@ function SubmissionsPage() {
           <div className="submissions-layout">
             <section className="submission-table-wrap" aria-label={`${filter} submissions`}>
               {visibleSubmissions.length === 0 ? <div className="empty-state submissions-empty"><strong>No submissions yet</strong><p>Uploaded assignments will appear here once you submit your work.</p><Link className="assignment-link" to="/student/assignments">Browse assignments <span aria-hidden="true">→</span></Link></div> : (
-                <div className="submission-table-scroll">
+                <TableScroll className="submission-table-scroll" label="My submissions">
                   <table className="submission-table">
                     <thead><tr><th>Assignment</th><th>Submitted</th><th>File</th><th>Status</th><th>Auto-check</th><th>Mark</th><th /></tr></thead>
                     <tbody>{visibleSubmissions.map((submission) => {
@@ -55,7 +56,7 @@ function SubmissionsPage() {
                       </tr>
                     })}</tbody>
                   </table>
-                </div>
+                </TableScroll>
               )}
             </section>
 
