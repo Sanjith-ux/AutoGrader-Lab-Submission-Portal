@@ -3,12 +3,9 @@ import { useEffect, useState } from 'react'
 import StudentSidebar from '../components/StudentSidebar'
 import { fetchAssignments } from '../api/assignments'
 import { fetchSubmissions } from '../api/submissions'
+import { buildStudentMarksRecords, latestGradedAssignments } from '../utils/studentMarks'
 
 const filters = ['All', 'Graded', 'Under Review', 'Not Submitted']
-
-function formatDate(value) {
-  return value ? new Date(value).toLocaleDateString('en-GB') : 'Not submitted'
-}
 
 function StatusBadge({ status }) {
   return <span className={`marks-status ${status.toLowerCase().replaceAll(' ', '-')}`}>{status}</span>
@@ -24,32 +21,15 @@ function MarksFeedbackPage() {
     let current = true
     Promise.all([fetchAssignments(), fetchSubmissions()]).then(([assignments, submissions]) => {
       if (!current) return
-      // The API sorts newest first; show each assignment's latest attempt.
-      const latest = new Map()
-      for (const submission of submissions) if (!latest.has(submission.assignmentId)) latest.set(submission.assignmentId, submission)
-      const records = [...latest.values()].map((submission) => ({
-        id: submission.id,
-        title: submission.assignment,
-        subject: submission.subject,
-        submissionDate: formatDate(submission.submittedAt),
-        mark: submission.mark === '' ? '—' : `${submission.mark} / ${submission.totalMarks}`,
-        percentage: submission.mark === '' ? null : Number(submission.mark) / submission.totalMarks * 100,
-        status: submission.reviewStatus === 'Graded' ? 'Graded' : 'Under Review',
-        lecturer: submission.reviewedBy?.name || 'Awaiting lecturer review',
-        feedback: submission.feedback,
-        reviewedAt: submission.reviewStatus === 'Graded' ? submission.reviewedAt : null,
-        reviewedDate: submission.reviewStatus === 'Graded' ? formatDate(submission.reviewedAt) : '',
-      }))
-      for (const assignment of assignments) if (!latest.has(assignment.id)) records.push({ id: assignment.id, title: assignment.title, subject: assignment.subject, submissionDate: 'Not submitted', mark: '—', percentage: null, status: 'Not Submitted', lecturer: assignment.lecturer?.name || '', feedback: '', reviewedAt: null, reviewedDate: '' })
-      setMarksRecords(records)
+      setMarksRecords(buildStudentMarksRecords(assignments, submissions))
     }).catch((error) => { if (current) setError(error.message) }).finally(() => { if (current) setLoading(false) })
     return () => { current = false }
   }, [])
   const visibleRecords = marksRecords.filter((record) => filter === 'All' || record.status === filter)
   const selectedRecord = visibleRecords.find((record) => record.id === selectedId) || visibleRecords[0]
-  const gradedRecords = marksRecords.filter((record) => record.status === 'Graded')
+  const gradedRecords = latestGradedAssignments(marksRecords)
   const overallAverage = gradedRecords.length ? Math.round(gradedRecords.reduce((total, record) => total + record.percentage, 0) / gradedRecords.length) : 0
-  const mostRecent = [...gradedRecords].sort((a, b) => new Date(b.reviewedAt) - new Date(a.reviewedAt))[0]
+  const mostRecent = marksRecords.filter((record) => record.status === 'Graded').sort((a, b) => new Date(b.reviewedAt) - new Date(a.reviewedAt))[0]
 
   return (
     <main className="student-dashboard">
@@ -79,6 +59,7 @@ function MarksFeedbackPage() {
               {filters.map((item) => <button className={filter === item ? 'filter-button active' : 'filter-button'} type="button" key={item} onClick={() => setFilter(item)}>{item}</button>)}
             </div>
           </div>
+          <p className="summary-meta">Each row is a submission attempt. Published results remain available when a newer attempt is awaiting review. The average uses the latest graded attempt per assignment.</p>
 
           <div className="marks-layout">
             <section className="marks-table-wrap" aria-label={`${filter} marks and feedback`}>

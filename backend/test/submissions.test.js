@@ -210,6 +210,106 @@ describe('persistent submissions API (isolated test database)', { skip: !testMon
     assert.ok(stored.reviewedAt)
   })
 
+  test('grade visibility: saving a draft persists the score but hides it from the student list and details', async () => {
+    const s = (await upload((await assignment())._id)).body.submission
+    assert.equal((await review(s._id, { marks: 25, feedback: 'Private draft feedback', reviewStatus: 'Draft' })).status, 200)
+    const stored = await Submission.findById(s._id).lean()
+    assert.equal(stored.marks, 25)
+    assert.equal(stored.feedback, 'Private draft feedback')
+    assert.equal(stored.reviewStatus, 'Draft')
+    const listed = (await ctx.json('/api/submissions', ctx.tokens.student)).body.submissions.find((item) => item._id === s._id)
+    const detail = (await details(s._id)).body.submission
+    for (const value of [listed, detail]) {
+      assert.equal(value.marks, null)
+      assert.equal(value.feedback, '')
+      assert.equal(value.reviewStatus, 'Draft')
+    }
+  })
+
+  test('grade visibility: publishing persists marks and feedback and exposes only the correct student/assignment/attempt', async () => {
+    const a = await assignment()
+    const s = (await upload(a._id)).body.submission
+    assert.equal((await review(s._id, { marks: 42, feedback: 'Published result', reviewStatus: 'Graded' })).status, 200)
+    const stored = await Submission.findById(s._id).lean()
+    assert.equal(stored.marks, 42)
+    assert.equal(stored.feedback, 'Published result')
+    assert.equal(stored.reviewStatus, 'Graded')
+    for (const value of [(await details(s._id)).body.submission, (await ctx.json('/api/submissions', ctx.tokens.student)).body.submissions.find((item) => item._id === s._id)]) {
+      assert.equal(value._id, s._id)
+      assert.equal(value.student._id, ctx.student._id.toString())
+      assert.equal(value.assignment._id, a._id)
+      assert.equal(value.marks, 42)
+      assert.equal(value.requirements.totalMarks, 50)
+      assert.equal(value.feedback, 'Published result')
+      assert.equal(value.reviewStatus, 'Graded')
+    }
+  })
+
+  test('grade visibility: fresh requests, MongoDB reconnection and a new student login retain the published result', async () => {
+    const s = (await upload((await assignment())._id)).body.submission
+    await review(s._id, { marks: 42, feedback: 'Persistent published feedback', reviewStatus: 'Graded' })
+    assert.equal((await details(s._id)).body.submission.marks, 42)
+    await mongoose.disconnect()
+    await mongoose.connect(testMongoUri, { serverSelectionTimeoutMS: 5000, bufferTimeoutMS: 1500 })
+    // Browser logout discards its JWT; a new login must load the same persisted result.
+    const login = await ctx.json('/api/auth/login', null, { method: 'POST', body: JSON.stringify({ email: ctx.student.email, password: 'password123' }) })
+    assert.equal(login.status, 200)
+    const detail = await details(s._id, login.body.token)
+    assert.equal(detail.status, 200)
+    assert.equal(detail.body.submission.marks, 42)
+    assert.equal(detail.body.submission.feedback, 'Persistent published feedback')
+    const listed = (await ctx.json('/api/submissions', login.body.token)).body.submissions.find((item) => item._id === s._id)
+    assert.equal(listed.marks, 42)
+    assert.equal(listed.reviewStatus, 'Graded')
+  })
+
+  test('grade visibility: another student cannot read the published result through details or filtered lists', async () => {
+    const a = await assignment()
+    const s = (await upload(a._id)).body.submission
+    await review(s._id, { marks: 42, feedback: 'Student-private published result', reviewStatus: 'Graded' })
+    assert.equal((await details(s._id, otherStudentToken)).status, 404)
+    const otherList = await ctx.json(`/api/submissions?assignment=${a._id}`, otherStudentToken)
+    assert.equal(otherList.status, 200)
+    assert.ok(!otherList.body.submissions.some((item) => item._id === s._id))
+    assert.ok(!JSON.stringify(otherList.body).includes('Student-private published result'))
+    assert.equal((await details(s._id)).body.submission.marks, 42)
+  })
+
+  test('grade visibility: updating a published review keeps the same attempt and exposes the updated score and feedback', async () => {
+    const s = (await upload((await assignment())._id)).body.submission
+    await review(s._id, { marks: 42, feedback: 'First published result', reviewStatus: 'Graded' })
+    assert.equal((await details(s._id)).body.submission.marks, 42)
+    const updated = await review(s._id, { marks: 47, feedback: 'Updated published result', reviewStatus: 'Graded' })
+    assert.equal(updated.status, 200)
+    const stored = await Submission.findById(s._id).lean()
+    assert.equal(stored.reviewStatus, 'Graded')
+    assert.equal(stored.marks, 47)
+    assert.equal(stored.feedback, 'Updated published result')
+    for (const value of [(await details(s._id)).body.submission, (await ctx.json('/api/submissions', ctx.tokens.student)).body.submissions.find((item) => item._id === s._id)]) {
+      assert.equal(value._id, s._id)
+      assert.equal(value.marks, 47)
+      assert.equal(value.feedback, 'Updated published result')
+      assert.equal(value.reviewStatus, 'Graded')
+    }
+  })
+
+  test('grade visibility: newer pending and draft attempts do not remove an older published attempt from the student API', async () => {
+    const a = await assignment()
+    const first = (await upload(a._id)).body.submission
+    await review(first._id, { marks: 42, feedback: 'Published first attempt', reviewStatus: 'Graded' })
+    const pending = (await upload(a._id)).body.submission
+    const draft = (await upload(a._id)).body.submission
+    await review(draft._id, { marks: 49, feedback: 'Private newer attempt', reviewStatus: 'Draft' })
+    const result = await ctx.json(`/api/submissions?assignment=${a._id}`, ctx.tokens.student)
+    assert.equal(result.status, 200)
+    assert.equal(result.body.submissions.length, 3)
+    assert.equal(result.body.submissions.find((item) => item._id === first._id).marks, 42)
+    assert.equal(result.body.submissions.find((item) => item._id === first._id).feedback, 'Published first attempt')
+    assert.equal(result.body.submissions.find((item) => item._id === pending._id).marks, null)
+    assert.equal(result.body.submissions.find((item) => item._id === draft._id).marks, null)
+    assert.equal(result.body.submissions.find((item) => item._id === draft._id).feedback, '')
+  })
+
   test('rejects unauthorized and invalid reviews without changing marks or compliance', async () => {
     const s = (await upload((await assignment())._id)).body.submission
     const valid = { marks: 20, feedback: 'Feedback', reviewStatus: 'Graded' }

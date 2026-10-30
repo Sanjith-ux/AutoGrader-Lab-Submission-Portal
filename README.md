@@ -35,7 +35,7 @@ Lecturer: **Assignments** in the sidebar.
 
 ## Submissions and feedback
 
-Students upload files from **Assignments → View assignment** and see persisted attempts, automatic checks and published feedback under **My Submissions**. **Marks & Feedback** shows the latest attempt for each assignment and calculates percentages using the saved maximum marks.
+Students upload files from **Assignments → View assignment** and see persisted attempts, automatic checks and published feedback under **My Submissions**. **Marks & Feedback** shows each attempt separately so a newer pending attempt cannot hide an earlier published grade. Its average counts the latest graded attempt per assignment and uses the saved maximum marks. Lecturers must use **Publish Review** to make marks visible; **Save Draft** keeps that review private.
 
 Lecturers can download protected reports and save draft or published marks from **Student Submissions** or **Marks & Feedback**. Both pages use the same MongoDB submission records. Draft marks and feedback remain private to lecturers. Feedback uses the persisted comments field; there are no separate strengths or improvements fields in the API.
 
