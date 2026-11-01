@@ -8,9 +8,19 @@ function requireId(id) {
   if (!isValidObjectId(id)) throw submissionError(400, 'Invalid identifier.')
 }
 
+function studentWithdrawal(submission, now = new Date()) {
+  const deadline = submission.assignment?.deadline
+  let reason = ''
+  if (submission.withdrawnAt) reason = 'This submission is already withdrawn. Only the owning lecturer can restore it.'
+  else if (submission.reviewStatus !== 'Awaiting Review' || submission.marks != null || submission.reviewedAt != null) reason = 'Lecturer review has started or a grade has been published. Student withdrawal is no longer available.'
+  else if (!deadline || !(now < new Date(deadline))) reason = 'The assignment deadline has passed. Student withdrawal is no longer available.'
+  return { allowed: !reason, reason, deadline }
+}
+
 function publicSubmission(submission, role) {
   const value = submission.toObject()
   value.files = value.files.map(({ storagePath: _storagePath, ...file }) => file)
+  if (role === 'student') value.studentWithdrawal = studentWithdrawal(value)
   if (role === 'student' && value.reviewStatus !== 'Graded') {
     value.marks = null
     value.feedback = ''
@@ -118,14 +128,23 @@ async function changeWithdrawal(req, res, next, withdraw) {
     const reason = req.body?.reason
     if (typeof reason !== 'string' || reason.trim().length < 5 || reason.trim().length > 1000) throw submissionError(400, 'Provide a reason of 5 to 1000 characters.')
     const at = new Date()
+    const student = req.user.role === 'student'
+    if (student) {
+      if (!withdraw) throw submissionError(403, 'Only the owning lecturer can restore submissions.')
+      const eligibility = studentWithdrawal(submission, at)
+      if (!eligibility.allowed) throw submissionError(409, eligibility.reason)
+    }
     const updated = await populate(Submission.findOneAndUpdate({
       _id: submission._id,
       withdrawnAt: withdraw ? null : { $ne: null },
+      // Recheck review state and deadline at the atomic write, so concurrent
+      // grading or crossing the deadline cannot bypass student restrictions.
+      ...(student ? { student: req.user._id, reviewStatus: 'Awaiting Review', marks: null, reviewedAt: null, $expr: { $lt: ['$$NOW', submission.assignment.deadline] } } : {}),
     }, {
       $set: { withdrawnAt: withdraw ? at : null, withdrawnBy: withdraw ? req.user._id : null, withdrawalReason: withdraw ? reason.trim() : '' },
       $push: { withdrawalHistory: { action: withdraw ? 'Withdrawn' : 'Restored', reason: reason.trim(), actor: req.user._id, at } },
     }, { new: true, runValidators: true }))
-    if (!updated) throw submissionError(409, withdraw ? 'This submission is already withdrawn.' : 'This submission is already active.')
+    if (!updated) throw submissionError(409, student ? 'Withdrawal is no longer available: the deadline, review or withdrawal state changed. Refresh your submissions.' : withdraw ? 'This submission is already withdrawn.' : 'This submission is already active.')
     res.json({ submission: publicSubmission(updated, req.user.role) })
   } catch (error) { next(error) }
 }

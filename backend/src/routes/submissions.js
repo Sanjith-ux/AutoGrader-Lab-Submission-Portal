@@ -9,6 +9,6 @@ router.post('/assignments/:assignmentId', requireRole('student'), uploadSubmissi
 router.get('/:id', getSubmission)
 router.get('/:id/files/:fileId', downloadSubmissionFile)
 router.patch('/:id/review', requireRole('lecturer'), reviewSubmission)
-router.post('/:id/withdraw', requireRole('lecturer'), withdrawSubmission)
+router.post('/:id/withdraw', withdrawSubmission)
 router.post('/:id/restore', requireRole('lecturer'), restoreSubmission)
 export default router

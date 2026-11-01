@@ -1,4 +1,6 @@
 import SubmissionWithdrawal from '../components/SubmissionWithdrawal'
+import SubmissionWithdrawalDialog from '../components/SubmissionWithdrawalDialog'
+import { studentWithdrawalState } from '../utils/studentWithdrawal'
 import TableScroll from '../components/TableScroll'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -19,12 +21,20 @@ function SubmissionsPage() {
   const [submissions, setSubmissions] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [withdrawalTarget, setWithdrawalTarget] = useState(null)
+  const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
     fetchSubmissions().then(setSubmissions).catch((error) => setError(error.message)).finally(() => setLoading(false))
   }, [])
   const visibleSubmissions = submissions.filter((submission) => filter === 'All' || (filter === 'Late' ? !submission.withdrawnAt && submission.timing === 'Late' : submission.status === filter))
   const selectedSubmission = submissions.find((submission) => submission.id === selectedId) || visibleSubmissions[0]
-  const selectedAssignment = selectedSubmission && { title: selectedSubmission.assignment, id: selectedSubmission.assignmentId, dueDate: new Date(selectedSubmission.requirements.deadline).toLocaleString() }
+  useEffect(() => {
+    // Keep the explanation current even if the deadline passes on an open page.
+    const timer = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(timer)
+  }, [])
+  const withdrawalState = selectedSubmission && studentWithdrawalState(selectedSubmission, now)
+  const selectedAssignment = selectedSubmission && { title: selectedSubmission.assignment, id: selectedSubmission.assignmentId, dueDate: new Date(selectedSubmission.studentWithdrawal?.deadline || selectedSubmission.requirements.deadline).toLocaleString() }
 
   return (
     <main className="student-dashboard">
@@ -68,11 +78,19 @@ function SubmissionsPage() {
               <div className="detail-block"><h4>Automatic submission check</h4><SubmissionChecks compliance={selectedSubmission.compliance} /></div>
               <div className="detail-block"><h4>Deadline status</h4><p className={selectedSubmission.timing === 'Late' ? 'deadline-late' : ''}>{selectedSubmission.timing === 'Late' ? 'Submitted after the deadline.' : 'Submitted before the deadline.'}</p></div>
               <div className="detail-block"><h4>Lecturer feedback</h4><p>{selectedSubmission.feedback || 'No published lecturer feedback yet.'}</p></div>
-              {selectedSubmission.assignmentStatus === 'Published' && (selectedSubmission.withdrawnAt || selectedSubmission.reviewStatus !== 'Graded') && <Link className="submit-button resubmit-button" to={`/student/assignments/${selectedAssignment.id}`}>Resubmit <span aria-hidden="true">→</span></Link>}
+              <div className="review-actions">
+                {selectedSubmission.assignmentStatus === 'Published' && (selectedSubmission.withdrawnAt || selectedSubmission.reviewStatus !== 'Graded') && <Link className="submit-button resubmit-button" to={`/student/assignments/${selectedAssignment.id}`}>Resubmit <span aria-hidden="true">→</span></Link>}
+                <button className="secondary-action-button" type="button" disabled={!withdrawalState.allowed} aria-describedby="student-withdrawal-availability" onClick={() => setWithdrawalTarget(selectedSubmission)}>Withdraw Submission</button>
+              </div>
+              {!withdrawalState.allowed && <p id="student-withdrawal-availability" className="review-message">{withdrawalState.reason}</p>}
             </aside>}
           </div>
         </div>
       </section>
+      {withdrawalTarget && <SubmissionWithdrawalDialog submission={withdrawalTarget} action="withdraw" studentInitiated onClose={() => setWithdrawalTarget(null)} onComplete={(updated) => {
+        setSubmissions((current) => current.map((submission) => submission.id === updated.id ? updated : submission))
+        setSelectedId(updated.id)
+      }} />}
     </main>
   )
 }
