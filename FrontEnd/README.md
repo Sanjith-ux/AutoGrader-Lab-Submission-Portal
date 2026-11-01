@@ -1,4 +1,4 @@
-# LabTrack frontend
+#  AutoGrader & Lab Submission Portal frontend 
 
 React and Vite frontend for the AutoGrader & Lab Submission Portal. It talks to the Express API at `VITE_API_BASE_URL` (default `http://localhost:5001/api`).
 
